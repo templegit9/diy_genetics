@@ -25,7 +25,7 @@ The intended end-to-end flow, which a `pipeline.sh` or Nextflow workflow should 
 ```
 FASTQ ──bwa-mem2──▶ sorted BAM ──samtools──▶ mark dups + BQSR (dbSNP) ──GATK──▶ VCF
   VCF ──VEP/ANNOVAR × ClinVar──▶ annotated health variants
-  VCF ──PLINK──▶ binary ──merge 1000G──▶ ADMIXTURE (projection mode) ──▶ ancestry
+  VCF ──rsID-key──▶ PLINK ──project onto 1000G PCA──▶ ancestry
   VCF ──bcftools──▶ extract ~640k 23andMe SNP positions (optional)
 ```
 
@@ -33,7 +33,7 @@ Key implementation notes carried from the guide:
 - Alignment: `bwa-mem2` (1–3x faster than original BWA-MEM), sort/index with `samtools`.
 - Refine: mark duplicates, then **BQSR using dbSNP as known-sites**. This mirrors the clinical standard (single aligner + GATK HaplotypeCaller, F-score > 0.99 on benchmarks).
 - Variant calling: **GATK4 HaplotypeCaller** is the default; **DeepVariant** is the drop-in alternative (better benchmarked SNP/indel accuracy). Support both if practical, GATK first.
-- Ancestry: run ADMIXTURE in **projection mode** against pre-learned 1000 Genomes clusters, not from scratch.
+- Ancestry: **PCA projection** (plink2) onto pre-learned 1000 Genomes superpopulation centroids, matched by **rsID** (build-agnostic — the 1000G panel is build 37, samples are GRCh38). ADMIXTURE was the original plan (guide's "projection mode"), but its 1.3.0 binary **segfaults on this CPU under WSL2** regardless of input, so the pipeline uses plink2 PCA instead.
 - Reference build is **GRCh38** throughout — do not mix in GRCh37/hg19 references or the coordinates won't line up.
 
 ### Tooling
@@ -44,7 +44,7 @@ Key implementation notes carried from the guide:
 | BAM/VCF ops | samtools / bcftools |
 | Variant calling | GATK4 HaplotypeCaller (DeepVariant alternative) |
 | Ancestry prep | PLINK 1.9 + PLINK 2 |
-| Ancestry estimate | ADMIXTURE |
+| Ancestry estimate | plink2 PCA projection (ADMIXTURE 1.3.0 segfaults on this hardware) |
 | Annotation | VEP or ANNOVAR |
 
 ## Constraints to respect when building

@@ -72,7 +72,9 @@ Getting 23andMe-style output from your own sequenced DNA is achievable, but it's
 3. **Refine** — Mark duplicates, then run Base Quality Score Recalibration (BQSR) using dbSNP as the known-sites reference. This mirrors the standard clinical sequencing workflow: a single aligner (BWA-MEM) paired with GATK HaplotypeCaller, which has demonstrated F-scores above 0.99 in benchmark datasets.
 4. **Call variants** — Run GATK HaplotypeCaller (or DeepVariant) to produce your personal VCF file.
 5. **Annotate for health** — Run VEP/ANNOVAR against ClinVar to flag clinically significant variants; cross-reference SNPedia for broader trait/health literature.
-6. **Estimate ancestry** — Convert your VCF to PLINK binary format, merge with the 1000 Genomes reference panel, and run ADMIXTURE. Using ADMIXTURE's "projection" mode lets you estimate ancestry proportions against pre-learned reference population clusters rather than computing everything from scratch.
+6. **Estimate ancestry** — Convert your VCF to PLINK binary format and project it against the 1000 Genomes reference panel to estimate ancestry proportions against pre-learned reference populations rather than computing everything from scratch.
+
+   > **Implementation note:** the original plan was ADMIXTURE in "projection" mode, but the ADMIXTURE 1.3.0 binary segfaults on modern CPUs under WSL2 (both the conda build and the official static binary, on any input). The pipeline therefore uses **plink2 PCA projection** instead: it learns the 1000G PCA space + per-superpopulation centroids once, then projects your sample and scores its distance to each centroid. Markers are matched by **rsID** so a GRCh38 sample lines up with the build-37 1000G panel. Results are directional (similarity to reference populations), same caveat as ADMIXTURE.
 7. **(Optional) 23andMe-format output** — Extract the ~640,000 SNP positions 23andMe tests from your VCF using bcftools, either for direct comparison or to upload to third-party interpretation tools like Genomelink or SelfDecode.
 
 ---

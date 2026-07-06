@@ -117,40 +117,39 @@ if ! skip_if_done "${KG_PREFIX}.pgen" "${KG_PREFIX}.pvar" "${KG_PREFIX}.psam"; t
   run bash -c "zstd -f -d '${KG_PREFIX}.pvar.zst' -o '${KG_PREFIX}.pvar' 2>/dev/null || plink2 --zst-decompress '${KG_PREFIX}.pvar.zst' > '${KG_PREFIX}.pvar'"
 fi
 
-# ---- 5. Supervised ADMIXTURE reference (NON-FATAL: ancestry is secondary) ----
-# Learn cluster allele freqs so stage 05 can *project* the personal sample.
-# Wrapped in a function called with `|| log_warn` so a failure here does NOT
-# block the essential VEP/chip steps below. NOTE: the 1000G "phase 3" panel is
-# build 37; the ancestry step still needs an rsID/liftover fix for the GRCh38
-# pipeline (see README) — this just prepares the reference clusters.
-learn_admixture_reference() {
+# ---- 5. PCA ancestry reference (NON-FATAL: ancestry is secondary) -----------
+# Learn a 1000G PCA space + per-superpopulation centroids so stage 05 can
+# PROJECT the personal sample and score its ancestry. We use plink2 PCA
+# projection because ADMIXTURE 1.3.0 segfaults on this CPU under WSL2. Matching
+# is by rsID (the panel is build 37, samples are GRCh38 — positions differ,
+# rsIDs don't). Wrapped with `|| log_warn` so a failure never blocks VEP/chip.
+learn_pca_reference() {
   if ! skip_if_done "${KG_POP}"; then
     log "building superpopulation label file from 1000G .psam (SuperPop column)…"
-    # ADMIXTURE --supervised requires #distinct labels == K. Use the SuperPop
-    # column (AFR/AMR/EAS/EUR/SAS = 5), NOT the last column (Population = 26).
+    # Use the SuperPop column (AFR/AMR/EAS/EUR/SAS = 5), NOT the last column
+    # (Population = 26 sub-populations).
     run bash -c "awk 'NR==1{for(i=1;i<=NF;i++)if(\$i==\"SuperPop\")c=i; next}{print \$c}' '${KG_PREFIX}.psam' > '${KG_POP}'"
   fi
-  skip_if_done "${KG_ADMIX_P}" && return 0
-  log "learning ADMIXTURE reference clusters (supervised, K=${ADMIXTURE_K}) — slow, one-time…"
+  skip_if_done "${KG_PCA_CENTROIDS}" && return 0
+  log "learning PCA ancestry reference (1000G superpopulations) — one-time…"
   local ref_bed="${kg_dir}/ref_pruned"
   if ! skip_if_done "${ref_bed}.bed"; then
     # Key markers by the panel's native rsIDs (NOT chr:pos:ref:alt) so stage 05
     # can match a GRCh38 sample against this build-37 panel by rsID — positions
     # differ across builds, rsIDs don't. Drop duplicate IDs so --indep-pairwise
     # has unique keys. MAF + tight LD pruning bring the marker count down from
-    # ~58M to a few hundred k, which is what ADMIXTURE can actually handle.
+    # ~58M to a few hundred k for a fast, stable PCA.
     # --indep-pairwise needs unique IDs. Fill ONLY missing ('.') IDs with
     # chr:pos:ref:alt (keeps real rsIDs, which stage 05 matches on), then drop
     # any variant whose ID still collides.
-    # --chr 1-22 + --output-chr 26: ADMIXTURE needs integer autosome codes only.
+    # --chr 1-22 + --output-chr 26: autosomes with integer chromosome codes.
     run plink2 --pfile "${KG_PREFIX}" \
       --chr 1-22 --output-chr 26 \
       --maf 0.05 --max-alleles 2 --snps-only \
       --set-missing-var-ids '@:#:$r:$a' --rm-dup exclude-all \
       --indep-pairwise 50 10 0.1 \
       --out "${kg_dir}/prune"
-    # Cap at ~150k markers — plenty for 5-way superpopulation ADMIXTURE and keeps
-    # the supervised learn to minutes rather than hours.
+    # Cap at ~150k markers — plenty for a 5-way superpopulation PCA.
     run plink2 --pfile "${KG_PREFIX}" \
       --chr 1-22 --output-chr 26 \
       --max-alleles 2 --snps-only \
@@ -159,11 +158,19 @@ learn_admixture_reference() {
       --thin-count 150000 --seed 42 \
       --make-bed --out "${ref_bed}"
   fi
-  run cp "${KG_POP}" "${ref_bed}.pop"
-  run bash -c "cd '${kg_dir}' && admixture --supervised -j${THREADS} '${ref_bed}.bed' ${ADMIXTURE_K}"
-  run cp "${kg_dir}/ref_pruned.${ADMIXTURE_K}.P" "${KG_ADMIX_P}"
+  # PCA + per-allele weights + allele frequencies (to project new samples).
+  run plink2 --bfile "${ref_bed}" --freq --pca 10 allele-wts --out "${kg_dir}/ref_pca"
+  # Project the reference onto its own PCs (the exact scaling stage 05 uses),
+  # then take per-superpopulation centroids over the top 4 PCs (sscore cols 5-8).
+  run plink2 --bfile "${ref_bed}" --read-freq "${kg_dir}/ref_pca.afreq" \
+    --score "${kg_dir}/ref_pca.eigenvec.allele" 2 6 header-read no-mean-imputation variance-standardize \
+    --score-col-nums 7-16 --out "${kg_dir}/ref_proj"
+  run bash -c "paste <(tail -n +2 '${kg_dir}/ref_proj.sscore') '${KG_POP}' \
+    | awk 'BEGIN{OFS=\"\t\"}{p=\$NF; n[p]++; for(i=5;i<=8;i++)s[p,i]+=\$i} \
+        END{for(p in n){printf \"%s\", p; for(i=5;i<=8;i++)printf \"\t%.6f\", s[p,i]/n[p]; print \"\"}}' \
+    > '${KG_PCA_CENTROIDS}'"
 }
-learn_admixture_reference || log_warn "ADMIXTURE reference prep failed — ancestry (stage 05) stays unavailable until the build-37/ID handling is fixed. Continuing to VEP/chip."
+learn_pca_reference || log_warn "PCA ancestry reference prep failed — ancestry (stage 05) unavailable. Continuing to VEP/chip."
 
 # ---- 6. 23andMe v5 chip positions (BED) ------------------------------------
 if [[ "${RUN_23ANDME}" == "true" ]] && ! skip_if_done "${CHIP_BED}"; then
