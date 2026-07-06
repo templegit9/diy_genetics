@@ -163,11 +163,25 @@ fi
 # ---- 7. VEP offline cache (if using VEP) -----------------------------------
 if [[ "${ANNOTATOR}" == "vep" ]] && ! skip_if_done "${VEP_CACHE_DIR}/.installed"; then
   ensure_dir "${VEP_CACHE_DIR}"
-  log "installing VEP GRCh38 offline cache (large)…"
-  run vep_install --AUTO cf --SPECIES homo_sapiens --ASSEMBLY GRCh38 \
-    --CACHEDIR "${VEP_CACHE_DIR}" --NO_HTSLIB --QUIET \
-    || log_warn "vep_install failed; run manually or switch ANNOTATOR=annovar"
-  run bash -c "touch '${VEP_CACHE_DIR}/.installed'"
+  if ! command -v vep_install >/dev/null 2>&1 && [[ "${DRY_RUN}" != "1" ]]; then
+    log_warn "vep_install not found (ensembl-vep not installed) — skipping VEP cache."
+    log_warn "Install it:  mamba install -n diy-genetics -c bioconda ensembl-vep  (or set ANNOTATOR=annovar)."
+  else
+    log "installing VEP GRCh38 offline cache (large, ~15GB)…"
+    if run vep_install --AUTO cf --SPECIES homo_sapiens --ASSEMBLY GRCh38 \
+         --CACHEDIR "${VEP_CACHE_DIR}" --NO_HTSLIB --QUIET; then
+      # Only mark done if the cache actually materialised — a non-zero or
+      # silently-failing install must NOT leave a false "ready" marker.
+      if [[ "${DRY_RUN}" == "1" ]] || compgen -G "${VEP_CACHE_DIR}/homo_sapiens/*" >/dev/null; then
+        run bash -c "touch '${VEP_CACHE_DIR}/.installed'"
+        log_ok "VEP cache ready"
+      else
+        log_warn "vep_install reported success but no cache at ${VEP_CACHE_DIR}/homo_sapiens — not marking ready."
+      fi
+    else
+      log_warn "vep_install failed; run manually or switch ANNOTATOR=annovar."
+    fi
+  fi
 fi
 
 log_ok "reference preparation complete (or dry-run planned)."
