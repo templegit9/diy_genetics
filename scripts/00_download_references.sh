@@ -48,7 +48,7 @@ if ! skip_if_done "${REF_FASTA}"; then
   run bash -c "gzip -dc '${grch38_gz}' > '${REF_FASTA}'"
 fi
 skip_if_done "${REF_FASTA}.fai"        || run samtools faidx "${REF_FASTA}"
-skip_if_done "${REF_FASTA%.fa}.dict"   || run gatk CreateSequenceDictionary -R "${REF_FASTA}"
+skip_if_done "${REF_FASTA%.*}.dict"    || run gatk CreateSequenceDictionary -R "${REF_FASTA}"
 
 # Classic BWA index (.amb/.ann/.bwt/.pac/.sa) — REQUIRED by NVIDIA Parabricks
 # (pbrun germline/fq2bam reads <ref>.bwt). Low memory (~5.5 GB for the human

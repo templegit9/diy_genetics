@@ -25,7 +25,7 @@ require_file "${FASTQ_R1}" "FASTQ R1"
 require_file "${FASTQ_R2}" "FASTQ R2"
 require_file "${REF_FASTA}" "reference FASTA (run stage 00)"
 require_file "${REF_FASTA}.fai" "reference .fai (run stage 00)"
-require_file "${REF_FASTA%.fa}.dict" "sequence dictionary (run stage 00)"
+require_file "${REF_FASTA%.*}.dict" "sequence dictionary (run stage 00)"
 [[ "${PARABRICKS_BQSR:-true}" != "false" ]] && require_file "${DBSNP_VCF}" "dbSNP known-sites (run stage 00; or set PARABRICKS_BQSR=false)"
 ensure_dir "${RESULTS_DIR}"
 
@@ -52,7 +52,7 @@ dv_args+=(
   --ref "${REF_FASTA}"
   --in-fq "${FASTQ_R1}" "${FASTQ_R2}"
   --out-bam "${OUT_BAM}"
-  --out-variants "${OUT_VCF}"
+  --out-variants "${OUT_VCF%.gz}"
   --num-gpus "${PARABRICKS_NUM_GPUS:-1}"
 )
 # BQSR (optional): needs a dbSNP whose contig names MATCH the reference. Disable
@@ -69,13 +69,15 @@ fi
 log "running Parabricks germline (align+BQSR+HaplotypeCaller on GPU)…"
 run "${dv_args[@]}"
 
-# Parabricks writes a bgzipped VCF; ensure a tabix index exists for stage 04.
-require docker  # (no-op reassert; tabix may live in the conda env instead)
-if [[ "${DRY_RUN}" != "1" && ! -s "${OUT_VCF}.tbi" ]]; then
-  if command -v tabix >/dev/null 2>&1; then
+# Parabricks requires a plain .vcf output name; compress + index it to the
+# .vcf.gz contract the downstream stages (04/05/06) expect.
+if [[ "${DRY_RUN}" != "1" ]]; then
+  if [[ -s "${OUT_VCF%.gz}" ]]; then
+    require bgzip tabix
+    run bgzip -f "${OUT_VCF%.gz}"
     run tabix -f -p vcf "${OUT_VCF}"
-  else
-    log_warn "tabix not found on PATH; index ${OUT_VCF} before stage 04 (annotation)."
+  elif [[ ! -s "${OUT_VCF}" ]]; then
+    die "Parabricks produced no VCF (${OUT_VCF%.gz})"
   fi
 fi
 
