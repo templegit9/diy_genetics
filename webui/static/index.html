@@ -118,13 +118,17 @@
   .note { font-size:11px; color:var(--dim); line-height:1.4; }
   .check { display:flex; align-items:center; gap:9px; padding:10px 12px; background:var(--inset); border:1px solid var(--border); border-radius:7px; cursor:pointer; font-size:12px; }
   .check input { width:15px; height:15px; }
-  .rightcol { flex:1; display:flex; flex-direction:column; gap:14px; min-width:0; min-height:0; }
+  .rightcol { flex:1; display:flex; flex-direction:column; gap:14px; min-width:0; min-height:0; overflow-y:auto; padding-right:3px; }
+  .rightcol > .card { flex:none; }
+  .card > summary { cursor:pointer; }
+  .card > summary .title::before { content:"▾"; display:inline-block; width:14px; color:var(--faint); font-weight:400; }
+  details.card:not([open]) > summary .title::before { content:"▸"; }
   #progress-wrap { padding:11px 15px; border-bottom:1px solid var(--border); }
   .prog-row { display:flex; justify-content:space-between; font:600 11px var(--mono);
     color:var(--dim); margin-bottom:7px; }
   .pbar { height:8px; border-radius:5px; background:var(--inset); border:1px solid var(--border); overflow:hidden; }
   .pbar > span { display:block; height:100%; background:var(--ink); border-radius:4px; transition:width .6s ease; }
-  #log { flex:1; overflow-y:auto; background:var(--term-bg); padding:12px 15px; font-family:var(--mono);
+  #log { max-height:min(46vh, 500px); overflow-y:auto; background:var(--term-bg); padding:12px 15px; font-family:var(--mono);
     font-size:12px; line-height:1.55; color:var(--term-text); }
   #log div { white-space:pre-wrap; word-break:break-word; }
   .results { flex:1.3; min-height:0; }
@@ -273,23 +277,8 @@
 
     <!-- RIGHT -->
     <div class="rightcol">
-      <details class="card" id="refs-card" style="flex:none">
-        <summary class="hd"><span class="title">References</span><span class="ep" id="refs-summary">…</span><span style="flex:1"></span><span class="ep">stage 00 · click to expand</span></summary>
-        <div style="padding:12px 15px;border-top:1px solid var(--border)">
-          <div id="refs-readiness" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"></div>
-          <div id="refs-list" style="display:flex;flex-direction:column;gap:2px"></div>
-        </div>
-      </details>
-      <section class="card" style="flex:1;min-height:0">
-        <div class="hd"><span class="title">Live log</span><span class="ep">/api/logs/stream</span><span style="flex:1"></span><span class="ep" id="log-meta"></span></div>
-        <div id="progress-wrap" class="hidden">
-          <div class="prog-row"><span id="prog-stage">—</span><span id="prog-time"></span></div>
-          <div class="pbar"><span id="prog-fill" style="width:0%"></span></div>
-        </div>
-        <div id="log"><div class="muted">No run yet. Configure on the left and hit Run.</div></div>
-      </section>
-      <section class="card results">
-        <div class="hd"><span class="title">Results</span><span class="ep" id="res-sample"></span><span style="flex:1"></span><button class="btn" id="btn-refresh" style="padding:4px 10px">Refresh</button></div>
+      <details class="card results" id="results-card" open>
+        <summary class="hd"><span class="title">Results</span><span class="ep" id="res-sample"></span><span style="flex:1"></span><button class="btn" id="btn-refresh" style="padding:4px 10px">Refresh</button></summary>
         <div class="body">
           <div class="dls" id="downloads"><span class="muted">Run the pipeline to generate results.</span></div>
           <div id="ancestry-sect" class="hidden">
@@ -315,7 +304,22 @@
             <div class="muted" id="health-count" style="margin-top:6px"></div>
           </div>
         </div>
-      </section>
+      </details>
+      <details class="card" id="refs-card">
+        <summary class="hd"><span class="title">References</span><span class="ep" id="refs-summary">…</span><span style="flex:1"></span><span class="ep">stage 00</span></summary>
+        <div style="padding:12px 15px;border-top:1px solid var(--border)">
+          <div id="refs-readiness" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"></div>
+          <div id="refs-list" style="display:flex;flex-direction:column;gap:2px"></div>
+        </div>
+      </details>
+      <details class="card" id="log-card" open>
+        <summary class="hd"><span class="title">Live log</span><span class="ep">/api/logs/stream</span><span style="flex:1"></span><span class="ep" id="log-meta"></span></summary>
+        <div id="progress-wrap" class="hidden">
+          <div class="prog-row"><span id="prog-stage">—</span><span id="prog-time"></span></div>
+          <div class="pbar"><span id="prog-fill" style="width:0%"></span></div>
+        </div>
+        <div id="log"><div class="muted">No run yet. Configure on the left and hit Run.</div></div>
+      </details>
     </div>
   </main>
 </div>
@@ -685,7 +689,7 @@ $("CALLER").addEventListener("change", syncCaller);
 $("btn-run").onclick = () => run(false);
 $("btn-dry").onclick = () => run(true);
 $("btn-stop").onclick = stop;
-$("btn-refresh").onclick = loadResults;
+$("btn-refresh").onclick = (e) => { e.preventDefault(); e.stopPropagation(); loadResults(); };
 // Guide overlay: load the guide into an iframe on first open (renders in-app).
 // File menu
 $("file-btn").onclick = (e) => {

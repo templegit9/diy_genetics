@@ -55,7 +55,7 @@ STAGES=(
   "03:03_call_variants.sh:call variants (${CALLER})"
   "03g:03g_parabricks_germline.sh:GPU germline FASTQ→VCF (parabricks)"
   "04:04_annotate_health.sh:annotate health (${ANNOTATOR})"
-  "05:05_ancestry.sh:ancestry (ADMIXTURE)"
+  "05:05_ancestry.sh:ancestry (PCA projection)"
   "06:06_export_23andme.sh:23andMe export"
 )
 
