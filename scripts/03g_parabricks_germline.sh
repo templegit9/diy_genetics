@@ -59,7 +59,8 @@ dv_args+=(
 # with PARABRICKS_BQSR=false (quick validation, or when known-sites contigs
 # don't line up). Without it, base quality scores just aren't recalibrated.
 if [[ "${PARABRICKS_BQSR:-true}" != "false" && -s "${DBSNP_VCF}" ]]; then
-  dv_args+=(--knownSites "${DBSNP_VCF}")
+  # pbrun requires an output recal file whenever --knownSites is given.
+  dv_args+=(--knownSites "${DBSNP_VCF}" --out-recal-file "${RESULTS_DIR}/${SAMPLE}.recal.txt")
 else
   log_warn "BQSR disabled (PARABRICKS_BQSR=${PARABRICKS_BQSR:-true}) — running without --knownSites."
 fi
