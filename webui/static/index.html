@@ -482,11 +482,11 @@ async function pickFile(targetId) {
     const path = winToWsl(Array.isArray(sel) ? sel[0] : sel);
     $(targetId).value = path;
     if (targetId === "FASTQ_R1") {
-      if (!$("FASTQ_R2").value && /_R1(\.|_)/.test(path)) $("FASTQ_R2").value = path.replace(/_R1(\.|_)/, "_R2$1");
-      if (!$("SAMPLE").value) {
-        const base = path.split("/").pop().replace(/_R1.*$/, "").replace(/\.(fastq|fq)(\.gz)?$/i, "");
-        if (base) { $("SAMPLE").value = base; loadResults(); }
-      }
+      // picking a new R1 means a new sample: derive R2 + Sample ID from it.
+      const r2 = path.replace(/_R1([._])/, "_R2$1");
+      if (r2 !== path) $("FASTQ_R2").value = r2;
+      const base = path.split("/").pop().replace(/_R1.*$/, "").replace(/\.(fastq|fq)(\.gz)?$/i, "");
+      if (base) { $("SAMPLE").value = base; loadResults(); }
     }
   } catch(e) { alert("File picker failed: " + e); }
 }
