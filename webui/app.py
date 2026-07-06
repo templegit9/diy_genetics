@@ -64,12 +64,11 @@ _run: dict[str, Any] = {
 
 
 # ---- config helpers ---------------------------------------------------------
-def load_conf_defaults() -> dict[str, str]:
-    """Source pipeline.conf in bash and echo resolved values (single source of
-    truth). Falls back to {} if bash/conf unavailable."""
-    vars_ = FORM_FIELDS + DERIVED_FIELDS
+def source_conf_vars(varnames: list[str]) -> dict[str, str]:
+    """Source pipeline.conf in bash and echo the requested variables' resolved
+    values (single source of truth). Falls back to {} if bash/conf unavailable."""
     script = "source '%s'; " % CONFIG_FILE + "".join(
-        f'printf "%s=%s\\n" "{v}" "${{{v}}}"; ' for v in vars_
+        f'printf "%s=%s\\n" "{v}" "${{{v}}}"; ' for v in varnames
     )
     try:
         out = subprocess.run(
@@ -84,6 +83,10 @@ def load_conf_defaults() -> dict[str, str]:
             k, _, v = line.partition("=")
             conf[k] = v
     return conf
+
+
+def load_conf_defaults() -> dict[str, str]:
+    return source_conf_vars(FORM_FIELDS + DERIVED_FIELDS)
 
 
 def current_form() -> dict[str, str]:
@@ -241,6 +244,65 @@ def api_gpu() -> dict[str, Any]:
         }
     except ValueError:
         return {"available": False}
+
+
+@app.get("/api/references")
+def api_references() -> dict[str, Any]:
+    """Report which reference datasets (stage 00 outputs) are present, so the UI
+    can show download/prep progress and per-workflow readiness."""
+    c = source_conf_vars(["REF_FASTA", "DBSNP_VCF", "CLINVAR_VCF", "KG_PREFIX",
+                          "KG_POP", "KG_ADMIX_P", "CHIP_BED", "VEP_CACHE_DIR"])
+    fa = c.get("REF_FASTA", "")
+    kg = c.get("KG_PREFIX", "")
+    dict_path = (fa[:-3] + ".dict") if fa.endswith(".fa") else (fa + ".dict")
+    vep = c.get("VEP_CACHE_DIR", "")
+
+    def stat(p: str) -> dict[str, Any]:
+        try:
+            if p and os.path.isfile(p):
+                return {"exists": True, "size": os.path.getsize(p)}
+            # tolerate a still-downloading .part sibling as "in progress"
+            if p and os.path.isfile(p + ".part"):
+                return {"exists": False, "size": os.path.getsize(p + ".part"),
+                        "in_progress": True}
+        except OSError:
+            pass
+        return {"exists": False, "size": 0}
+
+    spec = [
+        ("GRCh38 reference FASTA", fa, "core"),
+        ("FASTA index (.fai)", fa + ".fai" if fa else "", "core"),
+        ("Sequence dictionary (.dict)", dict_path, "core"),
+        ("dbSNP known-sites", c.get("DBSNP_VCF", ""), "core"),
+        ("ClinVar VCF", c.get("CLINVAR_VCF", ""), "annotation"),
+        ("VEP cache", (vep + "/.installed") if vep else "", "annotation"),
+        ("1000G panel (.pgen)", kg + ".pgen" if kg else "", "ancestry"),
+        ("1000G panel (.pvar)", kg + ".pvar" if kg else "", "ancestry"),
+        ("1000G panel (.psam)", kg + ".psam" if kg else "", "ancestry"),
+        ("1000G population labels", c.get("KG_POP", ""), "ancestry"),
+        ("ADMIXTURE learned clusters", c.get("KG_ADMIX_P", ""), "ancestry"),
+        ("23andMe v5 chip positions", c.get("CHIP_BED", ""), "export"),
+        ("bwa-mem2 index (CPU align only)", fa + ".bwt.2bit.64" if fa else "", "cpu"),
+    ]
+    items = [{"label": lbl, "path": p, "group": g, **stat(p)} for lbl, p, g in spec]
+    have = {it["label"] for it in items if it["exists"]}
+
+    def ok(labels: list[str]) -> bool:
+        return all(l in have for l in labels)
+
+    core = ["GRCh38 reference FASTA", "FASTA index (.fai)",
+            "Sequence dictionary (.dict)", "dbSNP known-sites"]
+    ancestry = ["1000G panel (.pgen)", "1000G panel (.pvar)", "1000G panel (.psam)",
+                "1000G population labels", "ADMIXTURE learned clusters"]
+    readiness = {
+        "GPU pipeline (Parabricks)": ok(core),
+        "Health annotation": ok(["ClinVar VCF", "VEP cache"]),
+        "Ancestry": ok(ancestry),
+        "23andMe export": ok(["23andMe v5 chip positions"]),
+        "CPU align": ok(["bwa-mem2 index (CPU align only)"]),
+    }
+    return {"items": items, "readiness": readiness,
+            "ready_count": len(have), "total": len(items)}
 
 
 @app.get("/api/logs/stream")

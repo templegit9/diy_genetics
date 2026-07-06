@@ -13,8 +13,9 @@
     --bg:#eef1f5; --panel:#fff; --inset:#f5f7fa; --elev:#fff;
     --border:#e3e8ef; --border-2:#d3dae3; --hair:rgba(0,0,0,.04);
     --text:#131820; --dim:#5a6472; --faint:#99a2b0;
-    --accent:#b58400; --accent-fill:#f2c200; --accent-ink:#201900;
-    --accent-soft:rgba(242,194,0,.18); --accent-line:rgba(181,132,0,.5);
+    /* monochrome accent (white/black theme) — no gold */
+    --accent:#111827; --accent-fill:#111827; --accent-ink:#ffffff;
+    --accent-soft:rgba(17,24,39,.07); --accent-line:rgba(17,24,39,.22);
     --green:#1a7f37; --blue:#0a68d6; --amber:#9a6a00; --red:#cf222e;
     --amber-bg:rgba(214,161,42,.16); --amber-bd:rgba(190,140,20,.5);
     --field:#fff; --field-bd:#ccd3dd;
@@ -29,6 +30,9 @@
       --border:#2a323c; --border-2:#3a434f; --hair:rgba(255,255,255,.04);
       --text:#e6edf3; --dim:#9aa7b4; --faint:#6a7480;
       --field:#1c222b; --field-bd:#39424e;
+      /* monochrome accent flips light-on-dark in dark mode */
+      --accent:#e6edf3; --accent-fill:#e6edf3; --accent-ink:#0e1116;
+      --accent-soft:rgba(230,237,243,.10); --accent-line:rgba(230,237,243,.24);
     }
   }
   body { background:var(--bg); color:var(--text); font-family:var(--sans); font-size:13px; -webkit-font-smoothing:antialiased; }
@@ -122,6 +126,16 @@
   .muted { font-size:11px; color:var(--faint); line-height:1.5; }
   .amberish { color:var(--amber); font-family:var(--mono); font-size:11px; }
   .hidden { display:none !important; }
+  /* references panel */
+  details.card > summary { list-style:none; }
+  summary::-webkit-details-marker { display:none; }
+  .refchip { font-size:11px; padding:3px 8px; border-radius:999px; border:1px solid var(--border-2); font-family:var(--mono); color:var(--faint); }
+  .refchip.ok { color:var(--green); border-color:var(--green); }
+  .refrow { display:flex; align-items:center; gap:10px; font-size:12px; padding:3px 0; }
+  .refrow .rmark { width:16px; font-family:var(--mono); text-align:center; }
+  .rmark.ok { color:var(--green); } .rmark.prog { color:var(--amber); } .rmark.no { color:var(--faint); }
+  .refrow .rlbl { flex:1; font-family:var(--mono); }
+  .refrow .rsz { color:var(--faint); font-family:var(--mono); font-size:11px; }
 </style>
 </head>
 <body>
@@ -200,6 +214,13 @@
 
     <!-- RIGHT -->
     <div class="rightcol">
+      <details class="card" id="refs-card" style="flex:none">
+        <summary class="hd"><span class="title">References</span><span class="ep" id="refs-summary">…</span><span style="flex:1"></span><span class="ep">stage 00 · click to expand</span></summary>
+        <div style="padding:12px 15px;border-top:1px solid var(--border)">
+          <div id="refs-readiness" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"></div>
+          <div id="refs-list" style="display:flex;flex-direction:column;gap:2px"></div>
+        </div>
+      </details>
       <section class="card" style="flex:1;min-height:0">
         <div class="hd"><span class="title">Live log</span><span class="ep">/api/logs/stream</span><span style="flex:1"></span><span class="ep" id="log-meta"></span></div>
         <div id="log"><div class="muted">No run yet. Configure on the left and hit Run.</div></div>
@@ -234,7 +255,7 @@
 <script>
 const $ = id => document.getElementById(id);
 const FIELDS = ["SAMPLE","FASTQ_R1","FASTQ_R2","CALLER","ANNOTATOR","THREADS","MEM_GB","ADMIXTURE_K"];
-const ANC_COLORS = {EUR:"var(--accent-fill)",SAS:"#4a90d9",AMR:"#9b6dd6",AFR:"#e0843f",EAS:"#3fae6b"};
+const ANC_COLORS = {EUR:"#334155",SAS:"#4a90d9",AMR:"#9b6dd6",AFR:"#e0843f",EAS:"#3fae6b"};
 let es = null, backendUp = true;
 
 // When bundled in the Tauri desktop app, the page is served from tauri://
@@ -380,6 +401,24 @@ async function loadResults() {
 }
 // Fetch as a blob and save, so it works both same-origin (browser) and
 // cross-origin (Tauri → localhost:8080) without navigating the window away.
+function fmtSize(b) {
+  if (b >= 1e9) return (b/1e9).toFixed(1) + " GB";
+  if (b >= 1e6) return (b/1e6).toFixed(0) + " MB";
+  if (b >= 1e3) return (b/1e3).toFixed(0) + " KB";
+  return b + " B";
+}
+async function loadReferences() {
+  let d; try { d = await j("/api/references"); } catch(e) { return; }
+  $("refs-summary").textContent = `${d.ready_count}/${d.total} ready`;
+  $("refs-readiness").innerHTML = Object.entries(d.readiness).map(([k,v]) =>
+    `<span class="refchip ${v?'ok':''}">${v?'✓':'○'} ${k}</span>`).join("");
+  $("refs-list").innerHTML = d.items.map(it => {
+    const cls = it.exists ? "ok" : (it.in_progress ? "prog" : "no");
+    const mark = it.exists ? "✓" : (it.in_progress ? "⏳" : "○");
+    const sz = it.exists ? fmtSize(it.size) : (it.in_progress ? "downloading… " + fmtSize(it.size) : "—");
+    return `<div class="refrow"><span class="rmark ${cls}">${mark}</span><span class="rlbl">${it.label}</span><span class="rsz">${sz}</span></div>`;
+  }).join("");
+}
 window.dl = async name => {
   try {
     const r = await fetch(API + "/api/download?name=" + encodeURIComponent(name));
@@ -411,8 +450,8 @@ $("start-backend").onclick = async () => {
 };
 $("SAMPLE").addEventListener("change", loadResults);
 
-loadConfig().then(pollStatus).then(pollGpu).then(loadResults);
-setInterval(() => { if (!es) pollStatus(); pollGpu(); }, 4000);
+loadConfig().then(pollStatus).then(pollGpu).then(loadResults).then(loadReferences);
+setInterval(() => { if (!es) pollStatus(); pollGpu(); loadReferences(); }, 4000);
 </script>
 </body>
 </html>
