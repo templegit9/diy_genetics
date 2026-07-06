@@ -142,7 +142,9 @@ learn_admixture_reference() {
     # --indep-pairwise needs unique IDs. Fill ONLY missing ('.') IDs with
     # chr:pos:ref:alt (keeps real rsIDs, which stage 05 matches on), then drop
     # any variant whose ID still collides.
+    # --chr 1-22 + --output-chr 26: ADMIXTURE needs integer autosome codes only.
     run plink2 --pfile "${KG_PREFIX}" \
+      --chr 1-22 --output-chr 26 \
       --maf 0.05 --max-alleles 2 --snps-only \
       --set-missing-var-ids '@:#:$r:$a' --rm-dup exclude-all \
       --indep-pairwise 50 10 0.1 \
@@ -150,6 +152,7 @@ learn_admixture_reference() {
     # Cap at ~150k markers — plenty for 5-way superpopulation ADMIXTURE and keeps
     # the supervised learn to minutes rather than hours.
     run plink2 --pfile "${KG_PREFIX}" \
+      --chr 1-22 --output-chr 26 \
       --max-alleles 2 --snps-only \
       --set-missing-var-ids '@:#:$r:$a' --rm-dup exclude-all \
       --extract "${kg_dir}/prune.prune.in" \

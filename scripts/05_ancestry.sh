@@ -36,6 +36,7 @@ if ! skip_if_done "${rsid_vcf}"; then
 fi
 log "converting personal VCF to the reference marker set…"
 run plink2 --vcf "${rsid_vcf}" \
+  --chr 1-22 --output-chr 26 \
   --extract "${REF_DIR}/1000g/prune.prune.in" \
   --max-alleles 2 --snps-only \
   --make-bed --out "${work}/sample_pruned"
