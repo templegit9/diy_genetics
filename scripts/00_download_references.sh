@@ -46,7 +46,22 @@ fi
 skip_if_done "${REF_FASTA}.fai"        || run samtools faidx "${REF_FASTA}"
 skip_if_done "${REF_FASTA%.fa}.dict"   || run gatk CreateSequenceDictionary -R "${REF_FASTA}"
 # bwa-mem2 index writes several sidecar files; .bwt.2bit.64 is the sentinel.
-skip_if_done "${REF_FASTA}.bwt.2bit.64" || run bwa-mem2 index "${REF_FASTA}"
+# Building it for the human genome needs ~60-90 GB RAM. It is ONLY required for
+# the CPU align path (stage 01, gatk/deepvariant callers). The GPU Parabricks
+# path (03g) does its own alignment and does NOT need it — so a memory failure
+# here is a warning, not a hard stop, and the rest of the references proceed.
+if [[ "${SKIP_BWA_INDEX:-false}" == "true" ]]; then
+  log_warn "SKIP_BWA_INDEX=true — not building the bwa-mem2 index. CPU align (stage 01,"
+  log_warn "gatk/deepvariant callers) is unavailable until it's built; GPU Parabricks is unaffected."
+elif ! skip_if_done "${REF_FASTA}.bwt.2bit.64"; then
+  if ! run bwa-mem2 index "${REF_FASTA}"; then
+    log_warn "bwa-mem2 index failed (needs ~60-90 GB RAM). CPU align (stage 01) will be"
+    log_warn "unavailable until it is built (raise WSL memory, then re-run stage 00)."
+    log_warn "The GPU Parabricks caller does NOT need this — continuing."
+    rm -f "${REF_FASTA}".bwt.2bit.64 "${REF_FASTA}".0123 "${REF_FASTA}".amb \
+          "${REF_FASTA}".ann "${REF_FASTA}".pac 2>/dev/null || true
+  fi
+fi
 
 # ---- 2. dbSNP (BQSR known-sites) -------------------------------------------
 # NCBI ships dbSNP with RefSeq contig names (NC_0000..). BQSR needs contig names

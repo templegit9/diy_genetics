@@ -20,3 +20,8 @@
 # Compute tuning for this host (the workstation WSL sees 12 threads):
 # THREADS=12
 # MEM_GB=48
+
+# Skip the bwa-mem2 index build in stage 00. That index needs ~60-90 GB RAM and
+# is ONLY used by the CPU align path (stage 01, gatk/deepvariant). Set true on
+# memory-limited hosts that use the GPU Parabricks caller (which doesn't need it).
+# SKIP_BWA_INDEX=true
