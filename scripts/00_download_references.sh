@@ -125,22 +125,27 @@ fi
 # pipeline (see README) — this just prepares the reference clusters.
 learn_admixture_reference() {
   if ! skip_if_done "${KG_POP}"; then
-    log "building superpopulation label file from 1000G .psam…"
-    run bash -c "awk 'NR>1 {print \$NF}' '${KG_PREFIX}.psam' > '${KG_POP}'"
+    log "building superpopulation label file from 1000G .psam (SuperPop column)…"
+    # ADMIXTURE --supervised requires #distinct labels == K. Use the SuperPop
+    # column (AFR/AMR/EAS/EUR/SAS = 5), NOT the last column (Population = 26).
+    run bash -c "awk 'NR==1{for(i=1;i<=NF;i++)if(\$i==\"SuperPop\")c=i; next}{print \$c}' '${KG_PREFIX}.psam' > '${KG_POP}'"
   fi
   skip_if_done "${KG_ADMIX_P}" && return 0
   log "learning ADMIXTURE reference clusters (supervised, K=${ADMIXTURE_K}) — slow, one-time…"
   local ref_bed="${kg_dir}/ref_pruned"
   if ! skip_if_done "${ref_bed}.bed"; then
-    # The panel has non-unique variant IDs; assign chr:pos:ref:alt and drop
-    # duplicates so --indep-pairwise (which needs unique IDs) works.
+    # Key markers by the panel's native rsIDs (NOT chr:pos:ref:alt) so stage 05
+    # can match a GRCh38 sample against this build-37 panel by rsID — positions
+    # differ across builds, rsIDs don't. Drop duplicate IDs so --indep-pairwise
+    # has unique keys. MAF + tight LD pruning bring the marker count down from
+    # ~58M to a few hundred k, which is what ADMIXTURE can actually handle.
     run plink2 --pfile "${KG_PREFIX}" \
-      --max-alleles 2 --snps-only \
-      --set-all-var-ids '@:#:$r:$a' --rm-dup exclude-all \
-      --indep-pairwise 200 50 0.2 \
+      --maf 0.05 --max-alleles 2 --snps-only \
+      --rm-dup exclude-all \
+      --indep-pairwise 50 10 0.1 \
       --out "${kg_dir}/prune"
     run plink2 --pfile "${KG_PREFIX}" \
-      --set-all-var-ids '@:#:$r:$a' --rm-dup exclude-all \
+      --rm-dup exclude-all \
       --extract "${kg_dir}/prune.prune.in" \
       --make-bed --out "${ref_bed}"
   fi

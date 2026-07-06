@@ -18,16 +18,24 @@ work="${RESULTS_DIR}/ancestry_${SAMPLE}"
 
 if skip_if_done "${ANCESTRY_OUT}"; then exit 0; fi
 
-require plink2 admixture awk
+require plink2 admixture awk bcftools tabix
 require_file "${IN_VCF}" "personal VCF (run stage 03)"
 require_file "${KG_ADMIX_P}" "learned ADMIXTURE P (run stage 00)"
 require_file "${REF_DIR}/1000g/prune.prune.in" "1000G pruned SNP list (run stage 00)"
+require_file "${DBSNP_VCF}" "dbSNP (needed to key the sample by rsID; run stage 00)"
 ensure_dir "${work}"
 
-# ---- 1. Convert personal VCF to PLINK1 on the SAME pruned SNP set -----------
-# Projection requires the sample to have EXACTLY the reference marker set/order.
+# ---- 1. Key the personal VCF by rsID, then reduce to the reference markers --
+# The 1000G panel is build 37 and this sample is GRCh38 — match by rsID, not
+# position. Annotate the sample with dbSNP rsIDs, then keep the reference's
+# pruned rsID set so both sides share the same marker keys.
+rsid_vcf="${work}/sample.rsid.vcf.gz"
+if ! skip_if_done "${rsid_vcf}"; then
+  log "annotating sample with dbSNP rsIDs (build-agnostic matching)…"
+  run bash -c "bcftools annotate -a '${DBSNP_VCF}' -c ID '${IN_VCF}' -Oz -o '${rsid_vcf}' && tabix -f -p vcf '${rsid_vcf}'"
+fi
 log "converting personal VCF to the reference marker set…"
-run plink2 --vcf "${IN_VCF}" \
+run plink2 --vcf "${rsid_vcf}" \
   --extract "${REF_DIR}/1000g/prune.prune.in" \
   --max-alleles 2 --snps-only \
   --make-bed --out "${work}/sample_pruned"
