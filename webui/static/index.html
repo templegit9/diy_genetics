@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
 <title>DIY Genetics — Control Panel</title>
 <style>
   /* Ported from the Claude design artifact (light-first, amber accent, dark terminal).
@@ -10,7 +11,8 @@
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; height: 100%; }
   :root {
-    --bg:#eef1f5; --panel:#fff; --inset:#f5f7fa; --elev:#fff;
+    color-scheme: light;   /* force light UI regardless of OS/WebView dark mode */
+    --bg:#f3f5f8; --panel:#fff; --inset:#f5f7fa; --elev:#fff;
     --border:#e3e8ef; --border-2:#d3dae3; --hair:rgba(0,0,0,.04);
     --text:#131820; --dim:#5a6472; --faint:#99a2b0;
     /* monochrome accent (white/black theme) — no gold */
@@ -24,17 +26,7 @@
     --term-bg:#0b0e12; --term-text:#b7c2cf;
     --t-info:#4bbf6b; --t-ok:#5aa9ff; --t-warn:#e0b13a; --t-fail:#ff6b62;
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg:#0e1116; --panel:#161b22; --inset:#1c222b; --elev:#1c222b;
-      --border:#2a323c; --border-2:#3a434f; --hair:rgba(255,255,255,.04);
-      --text:#e6edf3; --dim:#9aa7b4; --faint:#6a7480;
-      --field:#1c222b; --field-bd:#39424e;
-      /* monochrome accent flips light-on-dark in dark mode */
-      --accent:#e6edf3; --accent-fill:#e6edf3; --accent-ink:#0e1116;
-      --accent-soft:rgba(230,237,243,.10); --accent-line:rgba(230,237,243,.24);
-    }
-  }
+  /* Light-only UI: no dark-mode media query, so the app is always white. */
   body { background:var(--bg); color:var(--text); font-family:var(--sans); font-size:13px; -webkit-font-smoothing:antialiased; }
   input, select, button { font-family:inherit; font-size:inherit; color:inherit; }
   input:focus-visible, select:focus-visible, button:focus-visible {
@@ -430,6 +422,21 @@ window.dl = async name => {
   } catch(e) { alert("download failed: " + e.message); }
 };
 
+// In the desktop app, auto-start the WSL backend on launch if it's not up yet,
+// then poll until it responds. In a plain browser this is a no-op.
+async function autoStartBackend() {
+  if (!TAURI || backendUp) return;
+  try {
+    $("wsl-label").textContent = "starting…";
+    await window.__TAURI__.core.invoke("start_backend", { distro: WSL_DISTRO, repoPath: WSL_REPO });
+    for (let i = 0; i < 12 && !backendUp; i++) {
+      await new Promise(r => setTimeout(r, 1500));
+      await pollStatus();
+    }
+    if (backendUp) { pollGpu(); loadReferences(); loadConfig(); }
+  } catch(e) { /* leave the manual Start backend button available */ }
+}
+
 // ---- wire up ----
 $("CALLER").addEventListener("change", syncCaller);
 $("btn-run").onclick = () => run(false);
@@ -450,7 +457,7 @@ $("start-backend").onclick = async () => {
 };
 $("SAMPLE").addEventListener("change", loadResults);
 
-loadConfig().then(pollStatus).then(pollGpu).then(loadResults).then(loadReferences);
+loadConfig().then(pollStatus).then(autoStartBackend).then(pollGpu).then(loadResults).then(loadReferences);
 setInterval(() => { if (!es) pollStatus(); pollGpu(); loadReferences(); }, 4000);
 </script>
 </body>
