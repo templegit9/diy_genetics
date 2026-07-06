@@ -53,6 +53,19 @@ TOKEN = os.environ.get("DIY_WEBUI_TOKEN", "")
 
 app = FastAPI(title="DIY Genetics Control Panel")
 
+# The desktop app's WebView loads from a tauri:// origin and fetches this API
+# cross-origin at http://localhost:8080, so the browser enforces CORS. Allow it
+# (single-user, localhost-bound service). Without this the app reads every
+# request as failed and shows the backend "stopped".
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # ---- run state (single active run) -----------------------------------------
 _run: dict[str, Any] = {
     "proc": None,        # subprocess.Popen | None
