@@ -100,6 +100,19 @@
   .browse { flex:none; border:1px solid var(--field-bd); background:var(--inset); color:var(--dim);
     border-radius:6px; padding:0 11px; font:600 11px var(--mono); cursor:pointer; }
   .browse:hover { border-color:var(--accent-line); color:var(--text); }
+  .menu { position:relative; display:inline-block; }
+  .menu-pop { position:absolute; top:calc(100% + 6px); right:0; min-width:230px; z-index:60;
+    background:var(--panel); border:1px solid var(--border); border-radius:10px;
+    box-shadow:0 10px 30px rgba(17,24,39,.14); padding:5px; }
+  .mi { display:block; width:100%; text-align:left; background:none; border:none; cursor:pointer;
+    padding:8px 11px; border-radius:6px; font:inherit; font-size:13px; color:var(--text); }
+  .mi:hover { background:var(--inset); }
+  .mi-sep { height:1px; background:var(--border); margin:5px 4px; }
+  .mi-head { padding:6px 11px 3px; font:600 10px/1 var(--mono); letter-spacing:.12em; text-transform:uppercase; color:var(--faint); }
+  .mi-empty { padding:5px 11px 8px; font-size:12px; color:var(--faint); }
+  #recent-list { max-height:220px; overflow-y:auto; }
+  .recent-item { font-family:var(--mono); font-size:12px; }
+  .cur-analysis { font:600 12px var(--mono); color:var(--dim); }
   .pill { font-size:9px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; color:var(--accent);
     background:var(--accent-soft); border:1px solid var(--accent-line); border-radius:20px; padding:2px 7px; }
   .note { font-size:11px; color:var(--dim); line-height:1.4; }
@@ -178,8 +191,19 @@
       </div>
       <div class="chip"><span class="dot" id="pipe-dot"></span><span class="k">Pipeline</span><span class="v" id="pipe-label">idle</span></div>
     </div>
-    <button class="headlink" id="open-analysis" title="Open a saved .diyg analysis">Open</button>
-    <button class="headlink" id="save-analysis" title="Save this analysis as a .diyg file">Save</button>
+    <div class="menu" id="file-menu">
+      <button class="headlink" id="file-btn" title="Analyses">File ▾</button>
+      <div class="menu-pop hidden" id="file-pop">
+        <button class="mi" data-act="new">New Analysis…</button>
+        <button class="mi" data-act="open">Open…</button>
+        <button class="mi" data-act="save">Save</button>
+        <button class="mi" data-act="saveas">Save As…</button>
+        <div class="mi-sep"></div>
+        <div class="mi-head">Recent</div>
+        <div id="recent-list"><div class="mi-empty">No recent analyses</div></div>
+      </div>
+    </div>
+    <span class="cur-analysis" id="cur-analysis"></span>
     <button class="headlink" id="guide-btn" title="How to use">Guide</button>
     <button class="btn primary hidden" id="start-backend">⏻ Start backend</button>
   </header>
@@ -339,34 +363,79 @@ function applyConfig(cfg) {
   if (cfg.RUN_23ANDME !== undefined) $("RUN_23ANDME").checked = String(cfg.RUN_23ANDME).toLowerCase() === "true";
   syncCaller();
 }
-async function saveAnalysis() {
+let currentAnalysis = { name: null, path: null };
+function updateCurLabel() {
+  $("cur-analysis").textContent = currentAnalysis.name ? "· " + currentAnalysis.name : "";
+}
+function newAnalysis() {
+  const name = (prompt("Name this analysis:", "") || "").trim();
+  if (!name) return;
+  const safe = name.replace(/[^A-Za-z0-9._-]+/g, "_");
+  currentAnalysis = { name: safe, path: null };
+  // Name-then-blank-slate: set the sample, clear the inputs, keep engine defaults.
+  $("SAMPLE").value = safe;
+  $("FASTQ_R1").value = ""; $("FASTQ_R2").value = "";
+  updateCurLabel();
+  loadResults();
+}
+async function doSave(path) {
   const sample = ($("SAMPLE").value || "").trim();
-  if (!sample) { alert("Set a Sample ID first."); return; }
-  if (!TAURI) { alert("Saving analyses is available in the desktop app."); return; }
+  const r = await jpost("/api/analysis/save", { sample, path });
+  currentAnalysis = { name: r.name, path: r.path };
+  updateCurLabel();
+  return r;
+}
+async function saveAsAnalysis() {
+  const sample = ($("SAMPLE").value || "").trim();
+  if (!sample) { alert("Set a Sample ID (or use New Analysis) first."); return; }
+  if (!TAURI) { alert("Saving is available in the desktop app."); return; }
   try {
     const sel = await window.__TAURI__.core.invoke("plugin:dialog|save", {
-      options: { defaultPath: sample + ".diyg",
+      options: { defaultPath: (currentAnalysis.name || sample) + ".diyg",
         filters: [{ name: "DIY Genetics analysis", extensions: ["diyg"] }] }
     });
     if (!sel) return;
-    const r = await jpost("/api/analysis/save", { sample, path: winToWsl(sel) });
-    alert(`Saved "${sample}" — ${r.files} files, ${(r.size / 1e6).toFixed(1)} MB.`);
+    const r = await doSave(winToWsl(sel));
+    alert(`Saved "${r.name}" — ${r.files} files, ${(r.size / 1e6).toFixed(1)} MB.`);
   } catch(e) { alert("Save failed: " + e); }
 }
+async function saveAnalysis() {
+  if (currentAnalysis.path) {
+    try { const r = await doSave(currentAnalysis.path); alert(`Saved "${r.name}".`); }
+    catch(e) { alert("Save failed: " + e); }
+  } else { saveAsAnalysis(); }
+}
+async function openPath(path) {
+  const r = await jpost("/api/analysis/open", { path });
+  applyConfig(r.config);
+  if (r.sample) $("SAMPLE").value = r.sample;
+  currentAnalysis = { name: r.name, path: r.path };
+  updateCurLabel();
+  loadResults();
+}
 async function openAnalysis() {
-  if (!TAURI) { alert("Opening analyses is available in the desktop app."); return; }
+  if (!TAURI) { alert("Opening is available in the desktop app."); return; }
   try {
     const sel = await window.__TAURI__.core.invoke("plugin:dialog|open", {
       options: { multiple: false, directory: false,
         filters: [{ name: "DIY Genetics analysis", extensions: ["diyg"] }] }
     });
     if (!sel) return;
-    const r = await jpost("/api/analysis/open", { path: winToWsl(Array.isArray(sel) ? sel[0] : sel) });
-    applyConfig(r.config);
-    if (r.sample) $("SAMPLE").value = r.sample;
-    loadResults();
-    alert(`Opened analysis "${r.sample}".`);
+    await openPath(winToWsl(Array.isArray(sel) ? sel[0] : sel));
   } catch(e) { alert("Open failed: " + e); }
+}
+async function loadRecents() {
+  try {
+    const d = await j("/api/analysis/recents");
+    const el = $("recent-list");
+    if (!d.recents || !d.recents.length) { el.innerHTML = `<div class="mi-empty">No recent analyses</div>`; return; }
+    el.innerHTML = d.recents.map(it =>
+      `<button class="mi recent-item" data-path="${it.path.replace(/"/g, "&quot;")}" title="${it.path.replace(/"/g, "&quot;")}">${it.name}</button>`).join("");
+    el.querySelectorAll(".recent-item").forEach(b => b.onclick = () => {
+      $("file-pop").classList.add("hidden");
+      openPath(b.dataset.path).catch(e => alert("Open failed: " + e));
+    });
+  } catch(e) { /* backend may be down */ }
 }
 
 // ---- status + gpu polling ----
@@ -587,8 +656,18 @@ $("btn-dry").onclick = () => run(true);
 $("btn-stop").onclick = stop;
 $("btn-refresh").onclick = loadResults;
 // Guide overlay: load the guide into an iframe on first open (renders in-app).
-$("save-analysis").onclick = saveAnalysis;
-$("open-analysis").onclick = openAnalysis;
+// File menu
+$("file-btn").onclick = (e) => {
+  e.stopPropagation();
+  const pop = $("file-pop"); pop.classList.toggle("hidden");
+  if (!pop.classList.contains("hidden")) loadRecents();
+};
+$("file-pop").onclick = (e) => e.stopPropagation();
+document.addEventListener("click", () => $("file-pop").classList.add("hidden"));
+document.querySelectorAll("#file-pop .mi[data-act]").forEach(b => b.onclick = () => {
+  $("file-pop").classList.add("hidden");
+  ({ new: newAnalysis, open: openAnalysis, save: saveAnalysis, saveas: saveAsAnalysis }[b.dataset.act])();
+});
 $("guide-btn").onclick = () => {
   const f = $("guide-frame");
   if (!f.getAttribute("src")) f.setAttribute("src", "guide.html");

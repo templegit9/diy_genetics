@@ -39,6 +39,7 @@ CONFIG_FILE = PROJECT_ROOT / "config" / "pipeline.conf"
 RUN_PIPELINE = PROJECT_ROOT / "run_pipeline.sh"
 STATIC_DIR = WEBUI_DIR / "static"
 STATE_FILE = WEBUI_DIR / "state.json"
+RECENTS_FILE = WEBUI_DIR / "recents.json"
 
 # Fields the UI exposes; exported as env overrides when launching the pipeline.
 FORM_FIELDS = [
@@ -525,7 +526,8 @@ async def api_analysis_save(request: Request) -> dict[str, Any]:
         z.writestr("analysis.json", json.dumps(manifest, indent=2))
         for arc, p in members:
             z.write(p, arc)
-    return {"ok": True, "path": str(dest_path), "sample": sample,
+    _record_recent(str(dest_path))
+    return {"ok": True, "path": str(dest_path), "name": dest_path.stem, "sample": sample,
             "files": len(members), "size": dest_path.stat().st_size}
 
 
@@ -561,5 +563,31 @@ async def api_analysis_open(request: Request) -> dict[str, Any]:
         STATE_FILE.write_text(json.dumps(config, indent=2))
     except Exception:
         pass
-    return {"ok": True, "sample": manifest.get("sample"),
-            "config": config, "created": manifest.get("created")}
+    _record_recent(src)
+    return {"ok": True, "sample": manifest.get("sample"), "name": Path(src).stem,
+            "path": src, "config": config, "created": manifest.get("created")}
+
+
+def _record_recent(path: str) -> None:
+    """Prepend a .diyg path to the recents list (deduped, newest first, capped)."""
+    try:
+        items = json.loads(RECENTS_FILE.read_text()) if RECENTS_FILE.exists() else []
+    except Exception:
+        items = []
+    items = [it for it in items if it.get("path") != path]
+    items.insert(0, {"path": path, "name": Path(path).stem, "ts": int(time.time())})
+    try:
+        RECENTS_FILE.write_text(json.dumps(items[:10], indent=2))
+    except Exception:
+        pass
+
+
+@app.get("/api/analysis/recents")
+def api_analysis_recents() -> dict[str, Any]:
+    try:
+        items = json.loads(RECENTS_FILE.read_text()) if RECENTS_FILE.exists() else []
+    except Exception:
+        items = []
+    # Drop entries whose file no longer exists so the menu stays truthful.
+    items = [it for it in items if it.get("path") and Path(it["path"]).exists()]
+    return {"recents": items}
