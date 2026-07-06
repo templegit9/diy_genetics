@@ -119,7 +119,6 @@
     <p class="lede">This app runs a whole-genome-sequencing pipeline on your own hardware —
       from raw sequencer reads to health-variant, ancestry, and 23andMe-style output. Here's
       what it does and how to run it.</p>
-    <a class="backlink" href="/">← Back to the control panel</a>
   </header>
 
   <!-- ARCHITECTURE -->
@@ -264,7 +263,35 @@
     <h2>Where to get real data</h2>
     <p>Two paths: sequence your own DNA, or use a public human genome to try the full pipeline.</p>
 
-    <h3 style="margin:18px 0 10px">Sequence your own DNA</h3>
+    <h3 style="margin:18px 0 10px">Getting your own sample — the saliva-kit route</h3>
+    <p class="muted" style="margin-bottom:14px">The everyday way to get your own raw DNA: no
+      needles, no lab visit — you spit in a tube and mail it back.</p>
+    <ol class="steps" style="margin-bottom:22px">
+      <li><div class="step-body"><h3>Order a whole-genome kit</h3>
+        <p class="muted">Buy a <b>30× WGS</b> kit online (Dante Labs, Sequencing.com, or similar).
+          “30×” means each base is read ~30 times — enough for reliable whole-genome calls.
+          Crucially, pick a vendor that lets you <b>download the raw FASTQ/BAM</b>, not just a
+          report.</p></div></li>
+      <li><div class="step-body"><h3>Register the kit</h3>
+        <p class="muted">When it arrives, activate the tube's barcode on the vendor's site so your
+          sample is tied to your account.</p></div></li>
+      <li><div class="step-body"><h3>Give a saliva sample</h3>
+        <p class="muted">Don't eat, drink, or smoke for ~30 minutes first. Then <b>spit into the
+          tube up to the fill line</b> (it takes a couple of minutes), close the cap to release
+          the stabilizing fluid, and shake.</p></div></li>
+      <li><div class="step-body"><h3>Mail it back</h3>
+        <p class="muted">Seal it in the prepaid return box and drop it in the post. The kit is
+          shelf-stable, so timing isn't critical.</p></div></li>
+      <li><div class="step-body"><h3>Wait for sequencing</h3>
+        <p class="muted">The lab extracts DNA from cells in your saliva and sequences it.
+          Turnaround is typically <b>5–8 weeks</b> for whole-genome.</p></div></li>
+      <li><div class="step-body"><h3>Download your raw files</h3>
+        <p class="muted">From the vendor portal, download your <b>FASTQ</b> (or BAM). Put them at
+          <code>/mnt/d/diy-genetics/data/</code> and run the pipeline — this is the moment the
+          whole app exists for.</p></div></li>
+    </ol>
+
+    <h3 style="margin:18px 0 10px">Vendor options</h3>
     <div class="grid">
       <div class="card">
         <h3>Consumer WGS kits <span class="tag paid">paid</span></h3>
@@ -320,7 +347,6 @@
         percentages are directional only: the public 1000 Genomes panel (2,504 people) can't
         match a proprietary database of millions.</div>
     </div>
-    <a class="backlink" href="/" style="margin-top:18px">← Back to the control panel</a>
   </section>
 
 </div>

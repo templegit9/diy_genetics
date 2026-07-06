@@ -66,6 +66,15 @@
   .headlink { font:600 12px var(--mono); color:var(--dim); text-decoration:none;
     border:1px solid var(--border-2); border-radius:7px; padding:7px 11px; }
   .headlink:hover { color:var(--text); border-color:var(--accent-line); }
+  .modal { position:fixed; inset:0; background:rgba(17,24,39,.55); z-index:100;
+    display:flex; align-items:center; justify-content:center; }
+  .modal-inner { position:relative; width:min(920px,94vw); height:90vh; background:var(--panel);
+    border:1px solid var(--border); border-radius:12px; overflow:hidden; box-shadow:0 24px 70px rgba(0,0,0,.35); }
+  .modal-close { position:absolute; top:10px; right:12px; z-index:2; width:30px; height:30px;
+    border-radius:8px; border:1px solid var(--border-2); background:var(--panel); color:var(--text);
+    cursor:pointer; font-size:14px; }
+  .modal-close:hover { border-color:var(--accent-line); }
+  #guide-frame { width:100%; height:100%; border:0; background:var(--panel); }
   /* caveat */
   .caveat { display:flex; align-items:center; gap:12px; padding:9px 16px; flex:none;
     background:var(--amber-bg); border-bottom:1px solid var(--amber-bd); font-size:12px; line-height:1.5; }
@@ -159,9 +168,17 @@
       </div>
       <div class="chip"><span class="dot" id="pipe-dot"></span><span class="k">Pipeline</span><span class="v" id="pipe-label">idle</span></div>
     </div>
-    <a class="headlink" href="guide.html" title="How to use">Guide</a>
+    <button class="headlink" id="guide-btn" title="How to use">Guide</button>
     <button class="btn primary hidden" id="start-backend">⏻ Start backend</button>
   </header>
+
+  <!-- in-app guide overlay -->
+  <div id="guide-modal" class="modal hidden">
+    <div class="modal-inner">
+      <button class="modal-close" id="guide-close" title="Close">✕</button>
+      <iframe id="guide-frame" title="How to use"></iframe>
+    </div>
+  </div>
 
   <!-- ===== CAVEAT ===== -->
   <div class="caveat" id="caveat">
@@ -447,6 +464,15 @@ $("btn-run").onclick = () => run(false);
 $("btn-dry").onclick = () => run(true);
 $("btn-stop").onclick = stop;
 $("btn-refresh").onclick = loadResults;
+// Guide overlay: load the guide into an iframe on first open (renders in-app).
+$("guide-btn").onclick = () => {
+  const f = $("guide-frame");
+  if (!f.getAttribute("src")) f.setAttribute("src", "guide.html");
+  $("guide-modal").classList.remove("hidden");
+};
+$("guide-close").onclick = () => $("guide-modal").classList.add("hidden");
+$("guide-modal").addEventListener("click", e => { if (e.target.id === "guide-modal") $("guide-modal").classList.add("hidden"); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") $("guide-modal").classList.add("hidden"); });
 $("caveat-x").onclick = () => $("caveat").classList.add("hidden");
 $("start-backend").onclick = async () => {
   if (TAURI) {
