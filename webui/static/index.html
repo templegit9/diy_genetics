@@ -106,6 +106,11 @@
   .check { display:flex; align-items:center; gap:9px; padding:10px 12px; background:var(--inset); border:1px solid var(--border); border-radius:7px; cursor:pointer; font-size:12px; }
   .check input { width:15px; height:15px; }
   .rightcol { flex:1; display:flex; flex-direction:column; gap:14px; min-width:0; min-height:0; }
+  #progress-wrap { padding:11px 15px; border-bottom:1px solid var(--border); }
+  .prog-row { display:flex; justify-content:space-between; font:600 11px var(--mono);
+    color:var(--dim); margin-bottom:7px; }
+  .pbar { height:8px; border-radius:5px; background:var(--inset); border:1px solid var(--border); overflow:hidden; }
+  .pbar > span { display:block; height:100%; background:var(--ink); border-radius:4px; transition:width .6s ease; }
   #log { flex:1; overflow-y:auto; background:var(--term-bg); padding:12px 15px; font-family:var(--mono);
     font-size:12px; line-height:1.55; color:var(--term-text); }
   #log div { white-space:pre-wrap; word-break:break-word; }
@@ -243,6 +248,10 @@
       </details>
       <section class="card" style="flex:1;min-height:0">
         <div class="hd"><span class="title">Live log</span><span class="ep">/api/logs/stream</span><span style="flex:1"></span><span class="ep" id="log-meta"></span></div>
+        <div id="progress-wrap" class="hidden">
+          <div class="prog-row"><span id="prog-stage">—</span><span id="prog-time"></span></div>
+          <div class="pbar"><span id="prog-fill" style="width:0%"></span></div>
+        </div>
         <div id="log"><div class="muted">No run yet. Configure on the left and hit Run.</div></div>
       </section>
       <section class="card results">
@@ -334,11 +343,41 @@ async function pollStatus() {
       else { pl.textContent="idle"; pd.style.background="var(--faint)"; }
       disableRun(false);
     }
+    updateProgress(d);
   } catch(e) {
     backendUp = false;
     setChip("wsl-dot","wsl-label","stopped","var(--red)");
     $("start-backend").classList.remove("hidden");
     disableRun(true);
+  }
+}
+function fmtDur(s) {
+  if (s == null) return "";
+  const m = Math.floor(s / 60), sec = s % 60;
+  return m + ":" + String(sec).padStart(2, "0");
+}
+function updateProgress(d) {
+  const wrap = $("progress-wrap");
+  if (d.running && d.plan && d.plan.length) {
+    wrap.classList.remove("hidden");
+    $("prog-fill").style.width = (d.percent || 0) + "%";
+    const st = (d.stage_index != null && d.plan[d.stage_index])
+      ? `Stage ${d.stage_index + 1}/${d.plan.length} · ${d.plan[d.stage_index].label}`
+      : "running";
+    $("prog-stage").textContent = `${st} · ${d.percent || 0}%`;
+    $("prog-time").textContent = `${fmtDur(d.elapsed)} elapsed` + (d.eta != null ? ` · ~${fmtDur(d.eta)} left` : "");
+  } else if (d.returncode === 0 && d.plan && d.plan.length) {
+    wrap.classList.remove("hidden");
+    $("prog-fill").style.width = "100%";
+    $("prog-stage").textContent = "Complete · 100%";
+    $("prog-time").textContent = d.elapsed != null ? `${fmtDur(d.elapsed)} total` : "";
+  } else if (d.returncode != null && d.returncode !== 0) {
+    wrap.classList.remove("hidden");
+    $("prog-fill").style.width = (d.percent || 0) + "%";
+    $("prog-stage").textContent = `Failed at stage ${d.stage_id || "?"} (rc=${d.returncode})`;
+    $("prog-time").textContent = d.elapsed != null ? `${fmtDur(d.elapsed)} elapsed` : "";
+  } else {
+    wrap.classList.add("hidden");
   }
 }
 function setChip(dotId, labId, text, color) { $(dotId).style.background=color; $(labId).textContent=text; $(labId).style.color=color; }

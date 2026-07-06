@@ -111,8 +111,14 @@ for entry in "${STAGES[@]}"; do
   else
     # Real run: tee stage output to a per-stage log.
     if ! bash "${SCRIPTS}/${script}" 2>&1 | tee "${logf}"; then
-      echo "$(_c '1;31')✗ stage ${num} failed — see ${logf}$(_c 0)" >&2
-      exit 1
+      # Ancestry (05) is non-fatal — it has a known build-37/GRCh38 limitation and
+      # shouldn't block the health + 23andMe outputs. Everything else is fatal.
+      if [[ "${num}" == "05" ]]; then
+        echo "$(_c '1;33')⚠ stage ${num} failed (non-fatal) — continuing. See ${logf}$(_c 0)" >&2
+      else
+        echo "$(_c '1;31')✗ stage ${num} failed — see ${logf}$(_c 0)" >&2
+        exit 1
+      fi
     fi
   fi
   echo

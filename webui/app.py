@@ -204,9 +204,23 @@ async def api_run(request: Request) -> JSONResponse:
         start_new_session=True,
     )
     _run.update(proc=proc, logfile=logfile, sample=sample,
-                mode="dry-run" if dry else "run", started=time.time())
+                mode="dry-run" if dry else "run", started=time.time(),
+                plan=run_stage_plan(overrides.get("CALLER", "gatk"),
+                                    overrides.get("RUN_23ANDME", "true")))
     return JSONResponse({"ok": True, "sample": sample,
                          "mode": _run["mode"], "logfile": logfile.name})
+
+
+def run_stage_plan(caller: str, run_23andme: str) -> list[dict[str, str]]:
+    """The stages this run will execute (00 is one-time setup, excluded)."""
+    if caller == "parabricks":
+        stages = [("03g", "GPU variant calling")]
+    else:
+        stages = [("01", "Align"), ("02", "Refine + BQSR"), ("03", "Call variants")]
+    stages += [("04", "Health annotation"), ("05", "Ancestry")]
+    if str(run_23andme).lower() == "true":
+        stages.append(("06", "23andMe export"))
+    return [{"id": s, "label": l} for s, l in stages]
 
 
 @app.post("/api/stop")
@@ -227,13 +241,43 @@ def api_status() -> dict[str, Any]:
     proc = _run["proc"]
     running = is_running()
     rc = None if (proc is None or running) else proc.returncode
+    stage = current_stage(_run["logfile"])
+    plan = _run.get("plan") or []
+    started = _run.get("started")
+    elapsed = int(time.time() - started) if started else None
+
+    # Current stage id = leading token of the "stage NN — ..." marker.
+    stage_id = stage.split()[0] if stage else None
+    idx = next((i for i, s in enumerate(plan) if s["id"] == stage_id), None)
+
+    percent = None
+    eta = None
+    if plan:
+        n = len(plan)
+        if running and idx is not None:
+            # coarse within-stage assumption (mid-stage); refines the ETA live.
+            frac = (idx + 0.5) / n
+            percent = round(frac * 100)
+            if elapsed and frac > 0:
+                eta = max(0, round(elapsed * (1 - frac) / frac))
+        elif rc == 0:
+            percent, eta = 100, 0
+        elif rc is not None and idx is not None:
+            percent = round((idx / n) * 100)
+
     return {
         "running": running,
         "returncode": rc,
         "sample": _run["sample"],
         "mode": _run["mode"],
-        "stage": current_stage(_run["logfile"]),
-        "started": _run["started"],
+        "stage": stage,
+        "stage_id": stage_id,
+        "started": started,
+        "elapsed": elapsed,
+        "plan": plan,
+        "stage_index": idx,
+        "percent": percent,
+        "eta": eta,
     }
 
 
