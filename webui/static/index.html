@@ -63,6 +63,9 @@
   .btn.primary:hover:not(:disabled) { filter:brightness(1.06); }
   .btn.danger { background:transparent; color:var(--red); border:1px solid var(--red); }
   .btn.danger:hover:not(:disabled) { background:rgba(207,34,46,.08); }
+  .headlink { font:600 12px var(--mono); color:var(--dim); text-decoration:none;
+    border:1px solid var(--border-2); border-radius:7px; padding:7px 11px; }
+  .headlink:hover { color:var(--text); border-color:var(--accent-line); }
   /* caveat */
   .caveat { display:flex; align-items:center; gap:12px; padding:9px 16px; flex:none;
     background:var(--amber-bg); border-bottom:1px solid var(--amber-bd); font-size:12px; line-height:1.5; }
@@ -156,6 +159,7 @@
       </div>
       <div class="chip"><span class="dot" id="pipe-dot"></span><span class="k">Pipeline</span><span class="v" id="pipe-label">idle</span></div>
     </div>
+    <a class="headlink" href="guide.html" title="How to use">Guide</a>
     <button class="btn primary hidden" id="start-backend">⏻ Start backend</button>
   </header>
 

@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>DIY Genetics — How to Use</title>
+<style>
+  :root {
+    --bg:#eef1f5; --panel:#ffffff; --inset:#f5f7fa;
+    --border:#e3e8ef; --border-2:#d3dae3; --hair:rgba(17,24,39,.06);
+    --text:#131820; --dim:#5a6472; --faint:#8a94a3;
+    --ink:#111827; --ink-soft:rgba(17,24,39,.06);
+    --afr:#e0843f; --amr:#9b6dd6; --eas:#3fae6b; --eur:#334155; --sas:#4a90d9;
+    --warn:#9a6a00; --warn-bg:rgba(214,161,42,.14); --warn-bd:rgba(190,140,20,.45);
+    --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#0e1116; --panel:#161b22; --inset:#1c222b;
+      --border:#2a323c; --border-2:#3a434f; --hair:rgba(255,255,255,.05);
+      --text:#e6edf3; --dim:#9aa7b4; --faint:#6a7480;
+      --ink:#e6edf3; --ink-soft:rgba(230,237,243,.08);
+      --eur:#8a94a3;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg:#0e1116; --panel:#161b22; --inset:#1c222b;
+    --border:#2a323c; --border-2:#3a434f; --hair:rgba(255,255,255,.05);
+    --text:#e6edf3; --dim:#9aa7b4; --faint:#6a7480;
+    --ink:#e6edf3; --ink-soft:rgba(230,237,243,.08); --eur:#8a94a3;
+  }
+  :root[data-theme="light"] {
+    --bg:#eef1f5; --panel:#ffffff; --inset:#f5f7fa;
+    --border:#e3e8ef; --border-2:#d3dae3; --hair:rgba(17,24,39,.06);
+    --text:#131820; --dim:#5a6472; --faint:#8a94a3;
+    --ink:#111827; --ink-soft:rgba(17,24,39,.06); --eur:#334155;
+  }
+  * { box-sizing:border-box; }
+  html { scroll-behavior:smooth; }
+  @media (prefers-reduced-motion:reduce){ html{ scroll-behavior:auto; } }
+  body {
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:var(--sans); font-size:15px; line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap { max-width:820px; margin:0 auto; padding:0 22px 88px; }
+
+  /* header */
+  header { padding:34px 0 26px; }
+  .kicker { font:600 11px/1 var(--mono); letter-spacing:.22em; text-transform:uppercase;
+    color:var(--faint); display:flex; align-items:center; gap:10px; }
+  h1 { font-size:34px; line-height:1.12; margin:14px 0 8px; letter-spacing:-.01em; text-wrap:balance; }
+  .lede { font-size:17px; color:var(--dim); margin:0; max-width:60ch; }
+  .helix { animation:spin 11s linear infinite; transform-style:preserve-3d; }
+  @media (prefers-reduced-motion:reduce){ .helix{ animation:none; } }
+  @keyframes spin { to { transform:rotateY(360deg); } }
+
+  /* sections */
+  section { margin-top:40px; }
+  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.14em; color:var(--dim);
+    font-weight:700; margin:0 0 14px; padding-bottom:9px; border-bottom:1px solid var(--border); }
+  h3 { font-size:16px; margin:0 0 4px; }
+  p { margin:0 0 12px; }
+  a { color:var(--text); text-decoration:underline; text-underline-offset:2px;
+    text-decoration-color:var(--border-2); }
+  a:hover { text-decoration-color:var(--ink); }
+  code { font-family:var(--mono); font-size:.85em; background:var(--ink-soft);
+    padding:2px 6px; border-radius:5px; }
+  .card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:20px 22px; }
+  .fig { background:var(--panel); border:1px solid var(--border); border-radius:12px;
+    padding:20px; overflow-x:auto; }
+  .fig svg { display:block; margin:0 auto; max-width:100%; height:auto; }
+  .cap { font:500 12px/1.5 var(--mono); color:var(--faint); text-align:center; margin-top:12px; }
+
+  /* steps */
+  ol.steps { list-style:none; counter-reset:s; margin:0; padding:0;
+    display:flex; flex-direction:column; gap:14px; }
+  ol.steps > li { counter-increment:s; display:grid; grid-template-columns:38px 1fr; gap:16px;
+    align-items:start; background:var(--panel); border:1px solid var(--border);
+    border-radius:12px; padding:16px 18px; }
+  ol.steps > li::before { content:counter(s); grid-row:1/99; font:700 15px/34px var(--mono);
+    text-align:center; width:34px; height:34px; border-radius:9px;
+    background:var(--ink); color:var(--bg); }
+  .step-body :last-child { margin-bottom:0; }
+  .muted { color:var(--dim); font-size:14px; }
+
+  /* data cards */
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:14px; }
+  .grid .card h3 { display:flex; align-items:baseline; gap:8px; }
+  .tag { font:600 10px/1 var(--mono); text-transform:uppercase; letter-spacing:.08em;
+    padding:3px 7px; border-radius:20px; border:1px solid var(--border-2); color:var(--faint); }
+  .tag.free { color:var(--eas); border-color:var(--eas); }
+  .tag.paid { color:var(--amr); border-color:var(--amr); }
+
+  .note { display:flex; gap:12px; align-items:flex-start; background:var(--warn-bg);
+    border:1px solid var(--warn-bd); border-radius:12px; padding:14px 16px; font-size:14px; }
+  .note b { color:var(--warn); }
+  .backlink { display:inline-flex; align-items:center; gap:7px; font:600 13px/1 var(--mono);
+    color:var(--dim); text-decoration:none; margin-top:8px; }
+  .backlink:hover { color:var(--ink); }
+  ul.tight { margin:6px 0 0; padding-left:18px; }
+  ul.tight li { margin:3px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="kicker">
+      <svg class="helix" width="16" height="16" viewBox="0 0 30 30" aria-hidden="true">
+        <path d="M9 3 C 9 9 21 9 21 15 C 21 21 9 21 9 27" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round"/>
+        <path d="M21 3 C 21 9 9 9 9 15 C 9 21 21 21 21 27" fill="none" stroke="var(--faint)" stroke-width="2.4" stroke-linecap="round"/>
+      </svg>
+      DIY Genetics · Handbook
+    </div>
+    <h1>How to turn raw DNA into your own genetic report</h1>
+    <p class="lede">This app runs a whole-genome-sequencing pipeline on your own hardware —
+      from raw sequencer reads to health-variant, ancestry, and 23andMe-style output. Here's
+      what it does and how to run it.</p>
+    <a class="backlink" href="/">← Back to the control panel</a>
+  </header>
+
+  <!-- ARCHITECTURE -->
+  <section>
+    <h2>How it's put together</h2>
+    <p>The window you click in is a thin desktop app. The real work happens in a Linux
+      environment (WSL2) behind it, where your GPU does the heavy lifting.</p>
+    <div class="fig">
+      <svg viewBox="0 0 720 250" role="img" aria-label="Architecture: desktop app talks to a WSL2 backend that uses the GPU and reference data">
+        <defs>
+          <marker id="ah" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+            <path d="M0 0 L8 4.5 L0 9 z" fill="var(--faint)"/>
+          </marker>
+          <style>
+            .box{ fill:var(--inset); stroke:var(--border-2); stroke-width:1.5; rx:12; }
+            .lbl{ font:600 13px var(--sans); fill:var(--text); }
+            .sub{ font:400 11px var(--mono); fill:var(--dim); }
+            .fr{ font:600 10px var(--mono); fill:var(--faint); letter-spacing:.1em; }
+            .flow{ stroke:var(--faint); stroke-width:1.6; fill:none; }
+          </style>
+        </defs>
+        <text x="24" y="24" class="fr">DESKTOP (WINDOWS)</text>
+        <rect class="box" x="24" y="36" width="200" height="86" rx="12"/>
+        <text x="44" y="70" class="lbl">Control panel</text>
+        <text x="44" y="90" class="sub">configure · run · view</text>
+        <text x="44" y="106" class="sub">results</text>
+
+        <path class="flow" d="M224 79 H300" marker-end="url(#ah)"/>
+        <text x="230" y="70" class="sub">localhost</text>
+
+        <text x="312" y="24" class="fr">WSL2 · LINUX</text>
+        <rect class="box" x="312" y="36" width="384" height="180" rx="12"/>
+        <rect class="box" x="332" y="58" width="150" height="60" style="fill:var(--panel)"/>
+        <text x="348" y="84" class="lbl">Pipeline</text>
+        <text x="348" y="102" class="sub">stages 00–06</text>
+        <rect class="box" x="500" y="58" width="176" height="60" style="fill:var(--panel)"/>
+        <text x="516" y="84" class="lbl">GPU · Parabricks</text>
+        <text x="516" y="102" class="sub">align + call variants</text>
+        <rect class="box" x="332" y="136" width="344" height="58" style="fill:var(--panel)"/>
+        <text x="348" y="161" class="lbl">Reference data</text>
+        <text x="348" y="179" class="sub">GRCh38 · dbSNP · ClinVar · 1000G · VEP</text>
+        <path class="flow" d="M482 88 H500" marker-end="url(#ah)"/>
+      </svg>
+      <div class="cap">Desktop app → WSL2 backend → your GPU + the reference datasets</div>
+    </div>
+  </section>
+
+  <!-- PIPELINE -->
+  <section>
+    <h2>What the pipeline does</h2>
+    <p>Your paired sequencing files go in one end; three kinds of report come out the other.
+      On a GPU, alignment and variant calling take minutes rather than most of a day.</p>
+    <div class="fig">
+      <svg viewBox="0 0 720 300" role="img" aria-label="Pipeline flow from FASTQ through alignment and variant calling to health, ancestry, and 23andMe outputs">
+        <defs>
+          <marker id="ah2" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+            <path d="M0 0 L8 4.5 L0 9 z" fill="var(--faint)"/>
+          </marker>
+          <style>
+            .n{ fill:var(--inset); stroke:var(--border-2); stroke-width:1.5; }
+            .nt{ font:600 13px var(--sans); fill:var(--text); }
+            .ns{ font:400 10.5px var(--mono); fill:var(--dim); }
+            .e{ stroke:var(--faint); stroke-width:1.6; fill:none; }
+            .oc{ stroke-width:1.5; }
+          </style>
+        </defs>
+        <!-- input -->
+        <rect class="n" x="14" y="118" width="120" height="64" rx="11"/>
+        <text x="30" y="146" class="nt">FASTQ</text>
+        <text x="30" y="164" class="ns">raw reads</text>
+        <path class="e" d="M134 150 H176" marker-end="url(#ah2)"/>
+        <!-- align -->
+        <rect class="n" x="176" y="118" width="132" height="64" rx="11"/>
+        <text x="192" y="142" class="nt">Align + call</text>
+        <text x="192" y="160" class="ns">GPU · Parabricks</text>
+        <text x="192" y="174" class="ns">→ your VCF</text>
+        <path class="e" d="M308 150 H350" marker-end="url(#ah2)"/>
+        <!-- fan out -->
+        <circle class="n oc" cx="366" cy="150" r="7"/>
+        <path class="e" d="M373 150 C 410 150 410 58 452 58" marker-end="url(#ah2)"/>
+        <path class="e" d="M373 150 H452" marker-end="url(#ah2)"/>
+        <path class="e" d="M373 150 C 410 150 410 242 452 242" marker-end="url(#ah2)"/>
+        <!-- health -->
+        <rect class="n" x="452" y="26" width="254" height="64" rx="11"/>
+        <text x="470" y="50" class="nt">Health annotation</text>
+        <text x="470" y="68" class="ns">VEP × ClinVar → flagged variants</text>
+        <text x="470" y="82" class="ns">research-grade, not a diagnosis</text>
+        <!-- ancestry -->
+        <rect class="n" x="452" y="118" width="254" height="64" rx="11"/>
+        <text x="470" y="142" class="nt">Ancestry</text>
+        <text x="470" y="160" class="ns">ADMIXTURE vs 1000 Genomes</text>
+        <text x="470" y="174" class="ns">directional proportions</text>
+        <!-- 23andme -->
+        <rect class="n" x="452" y="210" width="254" height="64" rx="11"/>
+        <text x="470" y="234" class="nt">23andMe-format export</text>
+        <text x="470" y="252" class="ns">~640k chip SNPs by rsID</text>
+        <text x="470" y="266" class="ns">upload to 3rd-party tools</text>
+      </svg>
+      <div class="cap">One VCF, three reports — health, ancestry, and a 23andMe-style file</div>
+    </div>
+  </section>
+
+  <!-- STEPS -->
+  <section>
+    <h2>Running it, step by step</h2>
+    <ol class="steps">
+      <li><div class="step-body">
+        <h3>Set up the backend — once</h3>
+        <p class="muted">On the workstation, run the WSL2 setup (installs Docker + the GPU
+          toolkit + the bioinformatics tools), then download the reference datasets. The
+          <b>References</b> panel in the app shows this filling in; you're ready when the core
+          rows are green.</p>
+      </div></li>
+      <li><div class="step-body">
+        <h3>Get your sequencing data</h3>
+        <p class="muted">You need paired-end FASTQ files (<code>*_R1.fastq.gz</code> and
+          <code>*_R2.fastq.gz</code>). See <a href="#data">Where to get real data</a> below.
+          Drop them on the big drive, e.g. <code>/mnt/d/diy-genetics/data/</code>.</p>
+      </div></li>
+      <li><div class="step-body">
+        <h3>Configure the run</h3>
+        <p class="muted">In <b>Run configuration</b>, set the Sample ID, point FASTQ R1/R2 at
+          your files, and pick a caller — <b>Parabricks (GPU)</b> is fastest. Choose whether to
+          include the 23andMe export.</p>
+      </div></li>
+      <li><div class="step-body">
+        <h3>Run — and watch it work</h3>
+        <p class="muted">Hit <b>Run pipeline</b> (or <b>Dry run</b> first to preview the plan).
+          The live log streams each stage; the GPU meter shows the card working.</p>
+      </div></li>
+      <li><div class="step-body">
+        <h3>Read your results</h3>
+        <p class="muted">When it finishes, the <b>Results</b> panel shows your ancestry bars and
+          a table of ClinVar-annotated variants, and offers the health report, ancestry, and
+          23andMe files to download.</p>
+      </div></li>
+    </ol>
+  </section>
+
+  <!-- DATA -->
+  <section id="data">
+    <h2>Where to get real data</h2>
+    <p>Two paths: sequence your own DNA, or use a public human genome to try the full pipeline.</p>
+
+    <h3 style="margin:18px 0 10px">Sequence your own DNA</h3>
+    <div class="grid">
+      <div class="card">
+        <h3>Consumer WGS kits <span class="tag paid">paid</span></h3>
+        <p class="muted">Order a 30× whole-genome kit (e.g. Dante Labs, Sequencing.com), spit
+          in a tube, and download your raw <b>FASTQ/BAM</b> weeks later. Confirm the vendor lets
+          you download the complete raw files — that's what this pipeline needs.</p>
+      </div>
+      <div class="card">
+        <h3>Nanopore, at home <span class="tag paid">paid</span></h3>
+        <p class="muted">An Oxford Nanopore MinION sequences DNA yourself, but library prep and
+          coverage make it an advanced project. Most people start with a mail-in kit.</p>
+      </div>
+    </div>
+
+    <h3 style="margin:22px 0 10px">Public genomes — free, to test the pipeline</h3>
+    <div class="grid">
+      <div class="card">
+        <h3>Genome in a Bottle <span class="tag free">free</span></h3>
+        <p class="muted">NIST's reference samples (HG001/NA12878, HG002…) with gold-standard
+          truth sets — ideal for checking accuracy. Real 30× human FASTQ, openly hosted.</p>
+        <ul class="tight muted">
+          <li>Search “GIAB HG002 NIST FASTQ”</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>1000 Genomes <span class="tag free">free</span></h3>
+        <p class="muted">High-coverage WGS for thousands of individuals, downloadable as
+          CRAM/FASTQ from the IGSR / ENA. Pick any sample ID.</p>
+      </div>
+      <div class="card">
+        <h3>Personal Genome Project <span class="tag free">free</span></h3>
+        <p class="muted">Participants publicly released their own data (open consent). Some have
+          whole genomes, not just chip data. A free login is required to download.</p>
+      </div>
+    </div>
+    <div class="note" style="margin-top:16px">
+      <span>◆</span>
+      <div><b>Quick smoke test:</b> a small chromosome-subset FASTQ (e.g. chr20) runs the whole
+        pipeline in minutes — good for confirming everything works before committing a full 30×
+        genome that takes longer and needs ~220&nbsp;GB of working space.</div>
+    </div>
+  </section>
+
+  <!-- CAVEAT -->
+  <section>
+    <h2>Before you interpret anything</h2>
+    <div class="note">
+      <span>⚠️</span>
+      <div><b>This is not medical advice.</b> Variants flagged “pathogenic” from raw sequencing
+        are frequently misleading without clinical context and confirmatory testing — they are
+        not diagnoses. Decide <em>before</em> you run the health annotation how you'll handle an
+        unexpected finding, and take anything significant to a genetic counselor. Ancestry
+        percentages are directional only: the public 1000 Genomes panel (2,504 people) can't
+        match a proprietary database of millions.</div>
+    </div>
+    <a class="backlink" href="/" style="margin-top:18px">← Back to the control panel</a>
+  </section>
+
+</div>
+</body>
+</html>
