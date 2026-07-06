@@ -26,7 +26,7 @@ require_file "${FASTQ_R2}" "FASTQ R2"
 require_file "${REF_FASTA}" "reference FASTA (run stage 00)"
 require_file "${REF_FASTA}.fai" "reference .fai (run stage 00)"
 require_file "${REF_FASTA%.fa}.dict" "sequence dictionary (run stage 00)"
-require_file "${DBSNP_VCF}" "dbSNP known-sites (run stage 00)"
+[[ "${PARABRICKS_BQSR:-true}" != "false" ]] && require_file "${DBSNP_VCF}" "dbSNP known-sites (run stage 00; or set PARABRICKS_BQSR=false)"
 ensure_dir "${RESULTS_DIR}"
 
 # ---- GPU preflight ----------------------------------------------------------
@@ -51,11 +51,18 @@ dv_args+=(
   pbrun germline
   --ref "${REF_FASTA}"
   --in-fq "${FASTQ_R1}" "${FASTQ_R2}"
-  --knownSites "${DBSNP_VCF}"
   --out-bam "${OUT_BAM}"
   --out-variants "${OUT_VCF}"
   --num-gpus "${PARABRICKS_NUM_GPUS:-1}"
 )
+# BQSR (optional): needs a dbSNP whose contig names MATCH the reference. Disable
+# with PARABRICKS_BQSR=false (quick validation, or when known-sites contigs
+# don't line up). Without it, base quality scores just aren't recalibrated.
+if [[ "${PARABRICKS_BQSR:-true}" != "false" && -s "${DBSNP_VCF}" ]]; then
+  dv_args+=(--knownSites "${DBSNP_VCF}")
+else
+  log_warn "BQSR disabled (PARABRICKS_BQSR=${PARABRICKS_BQSR:-true}) — running without --knownSites."
+fi
 # 16 GB cards (RTX 5070 Ti) need low-memory mode for the memory-heavy steps.
 [[ "${PARABRICKS_LOW_MEMORY}" == "true" ]] && dv_args+=(--low-memory)
 

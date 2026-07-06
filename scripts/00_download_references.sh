@@ -105,35 +105,38 @@ if ! skip_if_done "${KG_PREFIX}.pgen" "${KG_PREFIX}.pvar" "${KG_PREFIX}.psam"; t
   run bash -c "zstd -f -d '${KG_PREFIX}.pvar.zst' -o '${KG_PREFIX}.pvar' 2>/dev/null || plink2 --zst-decompress '${KG_PREFIX}.pvar.zst' > '${KG_PREFIX}.pvar'"
 fi
 
-# ---- 5. Supervised ADMIXTURE reference: learn cluster allele freqs ----------
-# Build a .pop label file (superpopulation per sample) and run ADMIXTURE ONCE on
-# the panel so stage 05 can *project* the personal sample instead of recomputing.
-if ! skip_if_done "${KG_POP}"; then
-  log "building superpopulation label file from 1000G .psam…"
-  # .psam columns include a SuperPop field; map each sample to its superpop.
-  run bash -c "
-    awk 'NR>1 {print \$NF}' '${KG_PREFIX}.psam' > '${KG_POP}'
-  "
-fi
-if ! skip_if_done "${KG_ADMIX_P}"; then
+# ---- 5. Supervised ADMIXTURE reference (NON-FATAL: ancestry is secondary) ----
+# Learn cluster allele freqs so stage 05 can *project* the personal sample.
+# Wrapped in a function called with `|| log_warn` so a failure here does NOT
+# block the essential VEP/chip steps below. NOTE: the 1000G "phase 3" panel is
+# build 37; the ancestry step still needs an rsID/liftover fix for the GRCh38
+# pipeline (see README) — this just prepares the reference clusters.
+learn_admixture_reference() {
+  if ! skip_if_done "${KG_POP}"; then
+    log "building superpopulation label file from 1000G .psam…"
+    run bash -c "awk 'NR>1 {print \$NF}' '${KG_PREFIX}.psam' > '${KG_POP}'"
+  fi
+  skip_if_done "${KG_ADMIX_P}" && return 0
   log "learning ADMIXTURE reference clusters (supervised, K=${ADMIXTURE_K}) — slow, one-time…"
-  # Make a pruned PLINK1 bed for ADMIXTURE from the panel (LD-pruned, biallelic SNPs).
-  ref_bed="${kg_dir}/ref_pruned"
+  local ref_bed="${kg_dir}/ref_pruned"
   if ! skip_if_done "${ref_bed}.bed"; then
+    # The panel has non-unique variant IDs; assign chr:pos:ref:alt and drop
+    # duplicates so --indep-pairwise (which needs unique IDs) works.
     run plink2 --pfile "${KG_PREFIX}" \
       --max-alleles 2 --snps-only \
+      --set-all-var-ids '@:#:$r:$a' --rm-dup exclude-all \
       --indep-pairwise 200 50 0.2 \
       --out "${kg_dir}/prune"
     run plink2 --pfile "${KG_PREFIX}" \
+      --set-all-var-ids '@:#:$r:$a' --rm-dup exclude-all \
       --extract "${kg_dir}/prune.prune.in" \
       --make-bed --out "${ref_bed}"
   fi
-  # ADMIXTURE reads <prefix>.pop next to the .bed/.fam for supervised mode.
   run cp "${KG_POP}" "${ref_bed}.pop"
   run bash -c "cd '${kg_dir}' && admixture --supervised -j${THREADS} '${ref_bed}.bed' ${ADMIXTURE_K}"
-  # ADMIXTURE writes ref_pruned.<K>.P / .Q in CWD; normalize the P name.
   run cp "${kg_dir}/ref_pruned.${ADMIXTURE_K}.P" "${KG_ADMIX_P}"
-fi
+}
+learn_admixture_reference || log_warn "ADMIXTURE reference prep failed — ancestry (stage 05) stays unavailable until the build-37/ID handling is fixed. Continuing to VEP/chip."
 
 # ---- 6. 23andMe v5 chip positions (BED) ------------------------------------
 if [[ "${RUN_23ANDME}" == "true" ]] && ! skip_if_done "${CHIP_BED}"; then
