@@ -216,6 +216,7 @@
       </div>
     </div>
     <span class="cur-analysis" id="cur-analysis"></span>
+    <button class="headlink" id="cc-btn" title="Genome sequencing crash course">Crash course</button>
     <button class="headlink" id="guide-btn" title="How to use">Guide</button>
     <button class="btn primary hidden" id="start-backend">⏻ Start backend</button>
   </header>
@@ -703,11 +704,12 @@ document.querySelectorAll("#file-pop .mi[data-act]").forEach(b => b.onclick = ()
   $("file-pop").classList.add("hidden");
   ({ new: newAnalysis, open: openAnalysis, save: saveAnalysis, saveas: saveAsAnalysis }[b.dataset.act])();
 });
-$("guide-btn").onclick = () => {
-  const f = $("guide-frame");
-  if (!f.getAttribute("src")) f.setAttribute("src", "guide.html");
+function openDoc(src) {
+  $("guide-frame").setAttribute("src", src);
   $("guide-modal").classList.remove("hidden");
-};
+}
+$("guide-btn").onclick = () => openDoc("guide.html");
+$("cc-btn").onclick = () => openDoc("crashcourse.html");
 $("guide-close").onclick = () => $("guide-modal").classList.add("hidden");
 $("guide-modal").addEventListener("click", e => { if (e.target.id === "guide-modal") $("guide-modal").classList.add("hidden"); });
 document.addEventListener("keydown", e => { if (e.key === "Escape") $("guide-modal").classList.add("hidden"); });

@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Genome Sequencing — a technical crash course</title>
+<style>
+  :root {
+    --bg:#f3f5f8; --panel:#ffffff; --inset:#f5f7fa; --border:#e3e8ef; --border-2:#d3dae3;
+    --text:#131820; --dim:#5a6472; --faint:#8a94a3; --ink:#111827;
+    --acc:#2f7d6b; --acc-soft:rgba(47,125,107,.10);
+    --warn:#9a6a00; --warn-bg:rgba(214,161,42,.13); --warn-bd:rgba(190,140,20,.4);
+    --a:#3fae6b; --c:#3f7fd6; --g:#e0843f; --t:#9b6dd6;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0e1116; --panel:#161b22; --inset:#1c222b; --border:#2a323c; --border-2:#3a434f;
+      --text:#e6edf3; --dim:#9aa7b4; --faint:#6a7480; --ink:#e6edf3;
+      --acc:#5bc0a8; --acc-soft:rgba(91,192,168,.12); }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:var(--sans);
+    font-size:15px; line-height:1.66; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:820px; margin:0 auto; padding:0 24px 96px; }
+  header { padding:40px 0 26px; border-bottom:1px solid var(--border); margin-bottom:8px; }
+  .kicker { font:600 11px/1 var(--mono); letter-spacing:.22em; text-transform:uppercase; color:var(--acc);
+    display:flex; align-items:center; gap:10px; }
+  .helix { animation:spin 12s linear infinite; }
+  @media (prefers-reduced-motion:reduce){ .helix{ animation:none; } }
+  @keyframes spin { to { transform:rotateY(360deg); } }
+  h1 { font-size:33px; line-height:1.12; margin:15px 0 10px; letter-spacing:-.01em; text-wrap:balance; }
+  .lede { font-size:16px; color:var(--dim); margin:0; max-width:64ch; }
+  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.13em; color:var(--acc); font-weight:700;
+    margin:44px 0 4px; }
+  h2 .num { color:var(--faint); margin-right:8px; }
+  h3 { font-size:17px; margin:26px 0 6px; letter-spacing:-.005em; }
+  p { margin:0 0 13px; } .wrap > section > p:first-of-type { margin-top:10px; }
+  a { color:var(--acc); text-underline-offset:2px; }
+  code, .m { font-family:var(--mono); font-size:.86em; }
+  code { background:var(--acc-soft); padding:2px 6px; border-radius:5px; color:var(--text); }
+  strong { font-weight:650; }
+  sup a { font:600 10px var(--mono); text-decoration:none; color:var(--acc); padding:0 1px; }
+  ul, ol { margin:0 0 13px; padding-left:22px; } li { margin:5px 0; }
+  .lead-in { font-weight:650; }
+  table { width:100%; border-collapse:collapse; margin:14px 0; font-size:13.5px; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+  th { font:600 11px/1.3 var(--mono); text-transform:uppercase; letter-spacing:.05em; color:var(--faint); }
+  td .m { color:var(--dim); }
+  .tablewrap { overflow-x:auto; border:1px solid var(--border); border-radius:10px; }
+  .tablewrap table { margin:0; } .tablewrap th, .tablewrap td { padding:9px 13px; }
+  .tablewrap tr:last-child td { border-bottom:none; }
+  .note { display:flex; gap:12px; align-items:flex-start; background:var(--warn-bg); border:1px solid var(--warn-bd);
+    border-radius:11px; padding:14px 16px; font-size:14px; margin:16px 0; }
+  .note b { color:var(--warn); }
+  .pipe { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px 18px; margin:16px 0;
+    font:500 12.5px/1.9 var(--mono); color:var(--dim); overflow-x:auto; }
+  .pipe b { color:var(--text); font-weight:700; }
+  .pipe .ar { color:var(--acc); }
+  .bases { font-family:var(--mono); font-weight:700; letter-spacing:.5px; }
+  .bases .A{color:var(--a)} .bases .C{color:var(--c)} .bases .G{color:var(--g)} .bases .T{color:var(--t)}
+  .refs { margin-top:14px; }
+  .refs ol { padding-left:26px; } .refs li { margin:7px 0; font-size:13px; color:var(--dim); }
+  .refs a { word-break:break-word; }
+  .foot { margin-top:40px; padding-top:16px; border-top:1px solid var(--border); font-size:13px; color:var(--faint); }
+  .toc { background:var(--inset); border:1px solid var(--border); border-radius:11px; padding:14px 18px; margin:20px 0 8px;
+    font-size:13.5px; }
+  .toc b { font:600 11px var(--mono); letter-spacing:.1em; text-transform:uppercase; color:var(--faint); display:block; margin-bottom:6px; }
+  .toc a { display:inline-block; margin-right:16px; color:var(--text); text-decoration:none; }
+  .toc a:hover { color:var(--acc); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker">
+      <svg class="helix" width="16" height="16" viewBox="0 0 30 30" aria-hidden="true">
+        <path d="M9 3 C 9 9 21 9 21 15 C 21 21 9 21 9 27" fill="none" stroke="var(--acc)" stroke-width="2.4" stroke-linecap="round"/>
+        <path d="M21 3 C 21 9 9 9 9 15 C 9 21 21 21 21 27" fill="none" stroke="var(--faint)" stroke-width="2.4" stroke-linecap="round"/>
+      </svg>
+      DIY Genetics · Crash course
+    </div>
+    <h1>Genome sequencing, end to end</h1>
+    <p class="lede">A technical primer on how a tube of saliva becomes a list of variants — the biology, the
+      instruments, the data formats and algorithms, and the hard limits on what any of it means. Every non-obvious
+      claim is cited; sources are listed at the bottom.</p>
+  </header>
+
+  <div class="toc">
+    <b>Contents</b>
+    <a href="#genome">1 · The genome</a>
+    <a href="#tech">2 · Sequencing tech</a>
+    <a href="#pipeline">3 · Reads → variants</a>
+    <a href="#interpret">4 · Interpretation &amp; limits</a>
+    <a href="#ethics">5 · Ethics, privacy &amp; law</a>
+  </div>
+
+  <section id="genome">
+    <h2><span class="num">1</span>What is actually being sequenced</h2>
+    <p>Your genome is ~<strong>3.1 billion base pairs</strong> of DNA, spooled across 23 chromosome pairs plus a tiny
+      circular mitochondrial genome (16,569 bp). The 2022 telomere-to-telomere assembly (T2T-CHM13) — the first truly
+      gapless human genome — measured <span class="m">3,054,815,472</span> nuclear base pairs.<sup><a href="#r1">1</a></sup>
+      Of that, only ~<strong>20,000 protein-coding genes</strong> (about 1–2% of the sequence) code for proteins; the
+      exact count is still argued over.<sup><a href="#r2">2</a></sup></p>
+
+    <p>DNA is a four-letter code — <span class="bases"><span class="A">A</span> <span class="C">C</span>
+      <span class="G">G</span> <span class="T">T</span></span> (adenine, cytosine, guanine, thymine). It's
+      double-stranded and complementary (A pairs with T, C with G), which is what makes it copyable and readable.
+      You inherit one copy of each chromosome from each parent, so at any position you have two alleles
+      (your <em>genotype</em>): homozygous if they match, heterozygous if they differ.</p>
+
+    <h3>How your genome differs from "the reference"</h3>
+    <p>There is no single normal genome. Analysis is done by comparison to a <em>reference</em> assembly, and a typical
+      person differs from it at <strong>4–5 million sites</strong>, &gt;99.9% of which are single-nucleotide variants and
+      short insertions/deletions.<sup><a href="#r3">3</a></sup> Variant classes, smallest to largest:</p>
+    <ul>
+      <li><span class="lead-in">SNV</span> (single-nucleotide variant) — one base changed, e.g. <span class="bases"><span class="A">A</span>→<span class="G">G</span></span>. The vast majority of your variants.</li>
+      <li><span class="lead-in">Indel</span> — a short insertion or deletion (1–50 bp). Harder to call than SNVs.</li>
+      <li><span class="lead-in">SV / CNV</span> — structural variants and copy-number variants (&gt;50 bp: large deletions, duplications, inversions, translocations). Clinically important, and the hardest to detect with short reads.</li>
+    </ul>
+
+    <h3>Reference builds — get this right or nothing lines up</h3>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Build</th><th>Year</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td><span class="m">GRCh37 / hg19</span></td><td>2009</td><td>Legacy; still appears in older clinical data. Coordinates differ from GRCh38.</td></tr>
+        <tr><td><span class="m">GRCh38 / hg38</span></td><td>2013</td><td>Current analysis/clinical default. <b>This pipeline uses GRCh38 throughout.</b></td></tr>
+        <tr><td><span class="m">T2T-CHM13</span></td><td>2022</td><td>First gapless assembly; adds ~200 Mbp and fixes errors. Rising, not yet the universal clinical default.</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>Genomic coordinates (a position like <span class="m">chr7:117,559,590</span>) are only meaningful <em>relative to a
+      build</em>. Mixing GRCh37 and GRCh38 data silently mis-places everything — one of the most common and damaging
+      mistakes in a home pipeline.<sup><a href="#r8">8</a></sup></p>
+  </section>
+
+  <section id="tech">
+    <h2><span class="num">2</span>How sequencing actually works</h2>
+    <p>No instrument reads a chromosome from one end to the other. Instead, sequencing is <em>shotgun</em>: shatter the
+      genome into millions of small fragments, read the fragments, and reassemble by mapping them back to the reference.
+      Platforms differ mainly in <strong>read length</strong> and <strong>error profile</strong>.</p>
+
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Platform</th><th>Read length</th><th>Single-read accuracy</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>Illumina<br><span class="m">(sequencing by synthesis)</span></td><td>2×150 bp (short)</td><td>~99.9% (Q30), mostly <em>substitution</em> errors<sup><a href="#r4">4</a></sup></td><td>Cheapest per base, highest throughput. The workhorse for 30× WGS. Weak on repeats/structural variants.</td></tr>
+        <tr><td>Oxford Nanopore</td><td>10–100+ kb, ultra-long &gt;1 Mb</td><td>~99.8% simplex / ~99.9% duplex (2024 basecallers)<sup><a href="#r5">5</a></sup></td><td>Reads native DNA in real time; great for structural variants, phasing, methylation. Vendor accuracy figures move fast.</td></tr>
+        <tr><td>PacBio HiFi<br><span class="m">(circular consensus)</span></td><td>15–25 kb</td><td>Q30+ (≥99.9%)<sup><a href="#r6">6</a></sup></td><td>Long <em>and</em> accurate by re-reading a circular template many times. Excellent all-rounder; pricier.</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>Coverage (depth), and why 30× is the magic number</h3>
+    <p><em>Coverage</em> is the average number of independent reads overlapping each position. Because fragments land
+      roughly at random, the number of reads at any position follows a Poisson distribution
+      (the Lander–Waterman model).<sup><a href="#r7a">7a</a></sup> At <strong>30×</strong>, essentially every position is
+      covered enough times that you can distinguish a true heterozygous site (~half the reads carry the variant) from
+      sequencing noise, and confidently call homozygous vs heterozygous genotypes — which is why 30× (≈90 gigabases of
+      data per genome) is the germline clinical-grade standard.<sup><a href="#r7b">7b</a></sup> Below ~15× you start
+      missing heterozygotes; "low-pass" WGS (~0.4×) is far cheaper but only works with statistical imputation.</p>
+
+    <h3>The cost curve</h3>
+    <p>Sequencing has fallen faster than Moore's law. The symbolic <strong>"$1000 genome"</strong> arrived in 2014; the last
+      figure in the NHGRI cost-tracking series was ~<strong>$525 per genome (2022)</strong>, and newer instruments now
+      advertise sub-$200 — though those are vendor list prices, not independent benchmarks.<sup><a href="#r_cost">9</a></sup></p>
+  </section>
+
+  <section id="pipeline">
+    <h2><span class="num">3</span>From reads to variants — the data &amp; the pipeline</h2>
+    <p>The instrument's raw output is not a genome; it's a giant pile of short reads. Three file formats carry the data
+      through the pipeline, each a published standard maintained by the community:</p>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Format</th><th>Holds</th><th>Stage</th></tr></thead>
+      <tbody>
+        <tr><td><span class="m">FASTQ</span></td><td>Raw reads + a per-base <em>quality</em> score</td><td>Off the sequencer<sup><a href="#r12a">12a</a></sup></td></tr>
+        <tr><td><span class="m">BAM / CRAM</span></td><td>Reads <em>aligned</em> to reference coordinates</td><td>After alignment<sup><a href="#r12b">12b</a></sup></td></tr>
+        <tr><td><span class="m">VCF</span></td><td>The <em>variants</em> — where you differ from the reference</td><td>After variant calling<sup><a href="#r12c">12c</a></sup></td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>Quality scores (Phred) — the number everything hinges on</h3>
+    <p>Each base in a FASTQ read carries a Phred quality score <span class="m">Q = −10·log₁₀(P<sub>error</sub>)</span>.
+      So <span class="m">Q30</span> = a 1-in-1,000 chance the base is wrong (99.9% accurate), <span class="m">Q20</span>
+      = 1-in-100. Every downstream step — alignment confidence, variant-call confidence — is a probabilistic combination of
+      these per-base error estimates.</p>
+
+    <h3>The stages (this is exactly what the app runs)</h3>
+    <div class="pipe">
+FASTQ <span class="ar">──align (bwa-mem2)──▶</span> <b>BAM</b> <span class="ar">──mark dups + recalibrate──▶</span> analysis-ready BAM
+      <span class="ar">──call (GATK / DeepVariant / Parabricks)──▶</span> <b>VCF</b>
+VCF <span class="ar">──annotate (VEP × ClinVar)──▶</span> health · <span class="ar">──project vs 1000G──▶</span> ancestry
+    </div>
+    <ul>
+      <li><span class="lead-in">Align.</span> Each read is placed at its best-matching position in the reference (BWA-MEM / bwa-mem2). This is the hard, compute-heavy step — millions of reads, each searched against 3 billion bases.</li>
+      <li><span class="lead-in">Refine.</span> Mark PCR duplicates (artificial copies from library prep that would inflate confidence) and, in the GATK path, recalibrate base-quality scores (BQSR) against known-variant sites.</li>
+      <li><span class="lead-in">Call variants.</span> Two dominant approaches: <b>GATK HaplotypeCaller</b> locally re-assembles reads and evaluates candidate haplotypes with a statistical model; <b>DeepVariant</b> reformulates calling as image classification and runs a convolutional neural net over pileup images.<sup><a href="#r7c">7c</a></sup> <b>NVIDIA Parabricks</b> (this app's GPU path) is a hardware-accelerated re-implementation of the same alignment + calling.</li>
+      <li><span class="lead-in">Annotate.</span> Tools like VEP attach meaning to each variant: which gene, predicted effect, and cross-references to clinical databases (ClinVar).</li>
+    </ul>
+
+    <h3>How do you know the calls are right? Benchmarking</h3>
+    <p>You can't eyeball 4 million variants. Instead, the field uses <strong>truth sets</strong>: NIST's
+      <em>Genome in a Bottle</em> (GIAB) project has exhaustively characterized a handful of genomes (e.g. HG002) to
+      produce high-confidence "answer keys," and GA4GH standardizes the comparison tools (<span class="m">hap.py</span>,
+      <span class="m">vcfeval</span>) that report precision, recall, and F1.<sup><a href="#r7d">7d</a></sup>
+      On these benchmarks, both GATK HaplotypeCaller and DeepVariant exceed <strong>F1 ≈ 0.99</strong> for SNVs — the top
+      precisionFDA Truth Challenge entry reached ~0.9996.<sup><a href="#r7e">7e</a></sup> <em>(This app hit
+      precision 99.2% / recall 99.5% on GIAB HG002 chr20 — right in that band.)</em></p>
+  </section>
+
+  <section id="interpret">
+    <h2><span class="num">4</span>Reading the results — and their limits</h2>
+    <p>A VCF is just coordinates and letters. Meaning comes from annotation databases:</p>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Database</th><th>What it is</th><th>Scale</th></tr></thead>
+      <tbody>
+        <tr><td><span class="m">dbSNP</span></td><td>Catalog of known short variants (the <span class="m">rs</span> IDs)</td><td>~1 billion human RefSNPs<sup><a href="#r9d">9d</a></sup></td></tr>
+        <tr><td><span class="m">gnomAD</span></td><td>Population allele frequencies — how <em>common</em> a variant is</td><td>807,162 individuals (v4)<sup><a href="#r9a">9a</a></sup></td></tr>
+        <tr><td><span class="m">1000 Genomes</span></td><td>Reference panel for ancestry</td><td>2,504 samples (3,202 expanded)<sup><a href="#r9b">9b</a></sup></td></tr>
+        <tr><td><span class="m">ClinVar</span></td><td>Clinically interpreted variant–disease links</td><td>Millions of submissions<sup><a href="#r9c">9c</a></sup></td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>Clinical significance is a spectrum, not a verdict</h3>
+    <p>The ACMG/AMP framework sorts variants into <strong>five tiers</strong>: <em>Pathogenic, Likely Pathogenic,
+      Uncertain Significance (VUS), Likely Benign, Benign</em>.<sup><a href="#r10a">10a</a></sup> Most of what a raw genome
+      surfaces is <em>VUS</em> — genuinely unknown. And even a real <em>Pathogenic</em> call is not a diagnosis:</p>
+    <ul>
+      <li><span class="lead-in">Penetrance</span> — not everyone carrying a pathogenic variant develops the condition. A <em>BRCA1</em> variant raises cancer risk substantially but is not a certainty.<sup><a href="#r10c">10c</a></sup></li>
+      <li><span class="lead-in">Expressivity</span> — among those affected, severity and features vary widely.</li>
+      <li><span class="lead-in">Zygosity &amp; inheritance</span> — one pathogenic copy of a <em>recessive</em> gene makes you a healthy carrier (dormant); a <em>dominant</em> gene needs only one. This is exactly the split the app's "hereditary conditions" report computes.</li>
+    </ul>
+    <p>For deliberate screening, the ACMG publishes a short list of <strong>medically actionable "secondary findings"</strong>
+      genes worth reporting — <strong>84 genes</strong> in the current SF v3.3 (2025).<sup><a href="#r10b">10b</a></sup></p>
+
+    <div class="note"><span>◆</span><div><b>Why raw genomes over-alarm.</b> A healthy genome carries a handful of
+      truly pathogenic variants among <em>tens of thousands</em> of benign/uncertain ClinVar hits, plus false positives in
+      hard-to-sequence regions and coverage gaps. Filtering, zygosity, penetrance and confirmatory testing are what turn a
+      scary list into a real signal — which is why every health output here says <em>research-grade, see a genetic
+      counselor</em>.</div></div>
+
+    <h3>Ancestry is directional, not destiny</h3>
+    <p>Ancestry works by projecting your genotypes onto a reference panel (this app uses PCA against the 1000 Genomes
+      superpopulations). With a public panel of a few thousand people it recovers broad continental structure well, but
+      it cannot match the resolution of a proprietary database of millions — treat proportions as <em>similarity to
+      reference populations</em>, not literal descent.</p>
+  </section>
+
+  <section id="ethics">
+    <h2><span class="num">5</span>Ethics, privacy &amp; law</h2>
+    <p>Your genome is the one identifier you can never change, it implicates blood relatives who never consented, and it
+      is legible to insurers and databases decades from now. A few things to understand before you sequence:</p>
+    <ul>
+      <li><span class="lead-in">GINA has a hole in it.</span> The US Genetic Information Nondiscrimination Act (2008) bars
+        genetic discrimination in <strong>health insurance and employment</strong> — but explicitly <strong>not</strong> in
+        <strong>life, disability, or long-term-care insurance</strong>, where insurers may use genetic and family-history
+        information (a few states add protections).<sup><a href="#r11">11</a></sup></li>
+      <li><span class="lead-in">Data permanence &amp; jurisdiction.</span> Once a vendor holds your sequence it can be copied,
+        cached, or subpoenaed. Prefer providers that let you fully download <em>and delete</em> your data, and note where
+        the company and lab are legally based.</li>
+      <li><span class="lead-in">Incidental findings.</span> Decide <em>before</em> you look whether you want to know about
+        unexpected serious findings (e.g. a cancer-risk variant you weren't screening for). This is a genuine and
+        irreversible choice.</li>
+      <li><span class="lead-in">Relatives.</span> Your data reveals probabilistic information about siblings, parents, and
+        children — sequencing yourself is partly a decision on their behalf.</li>
+    </ul>
+    <p>Running the pipeline yourself, locally, is one of the strongest privacy postures available: the raw data and the
+      interpretation never leave your own machine.</p>
+  </section>
+
+  <section class="refs" id="refs">
+    <h2>Sources</h2>
+    <ol>
+      <li id="r1">Nurk et al., "The complete sequence of a human genome," <em>Science</em> 2022. <a href="https://www.science.org/doi/10.1126/science.abj6987">science.org/doi/10.1126/science.abj6987</a></li>
+      <li id="r2">GENCODE gene annotation, <em>Nucleic Acids Research</em> 2025. <a href="https://academic.oup.com/nar/article/53/D1/D966/7905300">academic.oup.com/nar/…/D966</a></li>
+      <li id="r3">1000 Genomes Project, Auton et al., <em>Nature</em> 2015. <a href="https://www.nature.com/articles/nature15393">nature.com/articles/nature15393</a></li>
+      <li id="r4">Illumina, Quality (Phred) scores. <a href="https://www.illumina.com/science/technology/next-generation-sequencing/plan-experiments/quality-scores.html">illumina.com — quality scores</a></li>
+      <li id="r5">Oxford Nanopore, Accuracy (vendor, 2024). <a href="https://nanoporetech.com/platform/accuracy">nanoporetech.com/platform/accuracy</a></li>
+      <li id="r6">PacBio, HiFi sequencing. <a href="https://www.pacb.com/technology/hifi-sequencing/how-it-works/">pacb.com — HiFi</a></li>
+      <li id="r7a">Lander &amp; Waterman, <em>Genomics</em> 1988 (physical-mapping / Poisson model). <a href="https://www.sciencedirect.com/science/article/abs/pii/0888754388900079">sciencedirect.com — Lander &amp; Waterman</a></li>
+      <li id="r7b">Empirical clinical-WGS sensitivity vs depth. <a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8045368/">ncbi.nlm.nih.gov/pmc/PMC8045368</a></li>
+      <li id="r7c">Poplin et al., DeepVariant, <em>Nature Biotechnology</em> 2018. <a href="https://www.nature.com/articles/nbt.4235">nature.com/articles/nbt.4235</a></li>
+      <li id="r7d">Genome in a Bottle (NIST). <a href="https://www.nist.gov/programs-projects/genome-bottle">nist.gov — Genome in a Bottle</a></li>
+      <li id="r7e">precisionFDA Truth Challenge results. <a href="https://precision.fda.gov/challenges/truth/results">precision.fda.gov/challenges/truth</a></li>
+      <li id="r8">NHGRI, Telomere-to-Telomere &amp; reference genomes. <a href="https://www.genome.gov/about-genomics/telomere-to-telomere">genome.gov — T2T</a></li>
+      <li id="r_cost">NHGRI, DNA Sequencing Costs: Data. <a href="https://www.genome.gov/about-genomics/fact-sheets/DNA-Sequencing-Costs-Data">genome.gov — sequencing costs</a></li>
+      <li id="r9a">gnomAD v4.0 release (807,162 individuals), Broad Institute 2023. <a href="https://gnomad.broadinstitute.org/news/2023-11-gnomad-v4-0/">gnomad.broadinstitute.org — v4.0</a></li>
+      <li id="r9b">International Genome Sample Resource (IGSR / 1000 Genomes). <a href="https://www.internationalgenome.org/">internationalgenome.org</a></li>
+      <li id="r9c">NCBI ClinVar. <a href="https://www.ncbi.nlm.nih.gov/clinvar/">ncbi.nlm.nih.gov/clinvar</a> <span class="m">(exact live total varies)</span></li>
+      <li id="r9d">NCBI dbSNP. <a href="https://www.ncbi.nlm.nih.gov/snp/">ncbi.nlm.nih.gov/snp</a> <span class="m">(~1B RefSNPs, build 156; approximate)</span></li>
+      <li id="r10a">Richards et al., ACMG/AMP variant classification, <em>Genetics in Medicine</em> 2015. <a href="https://www.nature.com/articles/gim201530">nature.com/articles/gim201530</a></li>
+      <li id="r10b">ACMG Secondary Findings SF v3.3 (84 genes), <em>Genetics in Medicine</em> 2025. <a href="https://www.gimjournal.org/article/S1098-3600(25)00101-7/fulltext">gimjournal.org — SF v3.3</a></li>
+      <li id="r10c">NHGRI genetics glossary — Penetrance. <a href="https://www.genome.gov/genetics-glossary/Penetrance">genome.gov — penetrance</a></li>
+      <li id="r11">NHGRI, Genetic Discrimination &amp; GINA. <a href="https://www.genome.gov/about-genomics/policy-issues/Genetic-Discrimination">genome.gov — GINA</a></li>
+      <li id="r12a">Cock et al., FASTQ format, <em>Nucleic Acids Research</em> 2010. <a href="https://academic.oup.com/nar/article/38/6/1767/3112533">academic.oup.com/nar/…/1767</a></li>
+      <li id="r12b">Li et al., SAM/BAM (SAMtools), <em>Bioinformatics</em> 2009; specs at <a href="https://github.com/samtools/hts-specs">github.com/samtools/hts-specs</a>. <a href="https://academic.oup.com/bioinformatics/article/25/16/2078/204688">academic.oup.com/bioinformatics/…/2078</a></li>
+      <li id="r12c">Danecek et al., VCF format, <em>Bioinformatics</em> 2011. <a href="https://academic.oup.com/bioinformatics/article/27/15/2156/402296">academic.oup.com/bioinformatics/…/2156</a></li>
+    </ol>
+    <div class="foot">Figures for sequencing cost, platform accuracy, and live database counts change frequently and some
+      are vendor-reported — treat them as accurate to mid-2026 and verify against the linked primary sources for anything
+      you rely on. This page is educational, not medical advice.</div>
+  </section>
+</div>
+</body>
+</html>

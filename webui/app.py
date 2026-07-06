@@ -164,6 +164,12 @@ def guide() -> HTMLResponse:
     return HTMLResponse((STATIC_DIR / "guide.html").read_text())
 
 
+@app.get("/crashcourse", response_class=HTMLResponse)
+@app.get("/crashcourse.html", response_class=HTMLResponse)
+def crashcourse() -> HTMLResponse:
+    return HTMLResponse((STATIC_DIR / "crashcourse.html").read_text())
+
+
 @app.get("/api/config")
 def api_config() -> dict[str, Any]:
     return {"form": current_form(), "auth_required": bool(TOKEN)}
