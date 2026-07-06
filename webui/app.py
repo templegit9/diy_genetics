@@ -458,13 +458,32 @@ def api_results(sample: str | None = None) -> dict[str, Any]:
     health = rdir / f"{s}.health_report.tsv"
     ancestry = rdir / f"{s}.ancestry.txt"
     chip = rdir / f"{s}.23andme.txt"
+    hereditary = rdir / f"{s}.hereditary.tsv"
     out: dict[str, Any] = {"sample": s, "files": {}}
-    for key, p in (("health", health), ("ancestry", ancestry), ("chip", chip)):
+    for key, p in (("health", health), ("ancestry", ancestry), ("chip", chip),
+                   ("hereditary", hereditary)):
         out["files"][key] = {"name": p.name, "exists": p.exists(),
                              "size": p.stat().st_size if p.exists() else 0}
     out["health_rows"] = _parse_health(health) if health.exists() else []
     out["ancestry"] = _parse_ancestry(ancestry) if ancestry.exists() else None
+    out["hereditary"] = _parse_hereditary(hereditary) if hereditary.exists() else None
     return out
+
+
+def _parse_hereditary(path: Path) -> dict[str, list]:
+    """Group the hereditary.tsv rows by category (active/carrier/uncertain)."""
+    groups: dict[str, list] = {"active": [], "carrier": [], "uncertain": []}
+    for line in path.read_text(errors="replace").splitlines():
+        if not line or line.startswith("#") or line.startswith("category\t"):
+            continue
+        p = line.split("\t")
+        if len(p) < 5:
+            continue
+        groups.setdefault(p[0], []).append({
+            "gene": p[1], "condition": p[2].replace("_", " ").replace("&", "; "),
+            "zygosity": p[3], "significance": p[4].replace("_", " "),
+        })
+    return groups
 
 
 @app.get("/api/download")

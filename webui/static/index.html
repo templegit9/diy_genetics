@@ -152,6 +152,14 @@
   .tablewrap .scroll { max-height:300px; overflow-y:auto; }
   .muted { font-size:11px; color:var(--faint); line-height:1.5; }
   .amberish { color:var(--amber); font-family:var(--mono); font-size:11px; }
+  .her-cat { margin-bottom:13px; }
+  .her-h { font:700 12px var(--mono); margin-bottom:5px; display:flex; align-items:center; gap:8px; letter-spacing:.02em; }
+  .her-n { font-weight:600; font-size:11px; color:var(--faint); background:var(--inset); border:1px solid var(--border); border-radius:10px; padding:0 7px; }
+  .her-row { display:grid; grid-template-columns:66px 1fr 165px 90px; gap:9px; padding:5px 0; border-top:1px solid var(--border); font-size:12px; align-items:baseline; }
+  .her-gene { font-family:var(--mono); font-weight:700; }
+  .her-cond { color:var(--dim); }
+  .her-zyg { font-family:var(--mono); font-size:11px; color:var(--faint); }
+  .her-sig { font-family:var(--mono); font-size:11px; text-align:right; }
   .hidden { display:none !important; }
   /* references panel */
   details.card > summary { list-style:none; }
@@ -288,6 +296,11 @@
             <div class="sect-h"><span class="t">Ancestry</span><span class="s" id="anc-meta"></span></div>
             <div id="ancestry" style="display:flex;flex-direction:column;gap:7px;margin-top:9px"></div>
             <div class="muted" style="margin-top:6px">Public-panel ancestry is directional only — proportions reflect similarity to reference populations, not literal descent.</div>
+          </div>
+          <div id="hereditary-sect" class="hidden">
+            <div class="sect-h"><span class="t">Hereditary conditions</span><span class="amberish">research-grade, not a diagnosis</span></div>
+            <div id="hereditary-body" style="margin-top:9px"></div>
+            <div class="muted" style="margin-top:6px"><b>Active</b> = likely expressed (homozygous, or heterozygous in a dominant gene). <b>Carrier</b> = a dormant recessive copy (family-planning relevance, not your own health). <b>Uncertain</b> = single copy, inheritance mode unknown. Penetrance varies and compound-het calls are unphased — confirm nothing without a genetic counselor.</div>
           </div>
           <div id="health-sect" class="hidden">
             <div class="sect-h"><span class="t">Health · ClinVar-annotated variants</span><span class="amberish">research-grade, not a diagnosis</span></div>
@@ -492,6 +505,22 @@ function updateProgress(d) {
     wrap.classList.add("hidden");
   }
 }
+function esc(s) { return String(s == null ? "" : s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
+function renderHereditary(h) {
+  const sect = $("hereditary-sect"), body = $("hereditary-body");
+  const total = h ? (h.active || []).length + (h.carrier || []).length + (h.uncertain || []).length : 0;
+  if (!total) { sect.classList.add("hidden"); body.innerHTML = ""; return; }
+  const cats = [
+    ["active", "Active — likely expressed", "var(--red)"],
+    ["carrier", "Carrier — dormant", "var(--amber)"],
+    ["uncertain", "Uncertain significance", "var(--dim)"],
+  ];
+  sect.classList.remove("hidden");
+  body.innerHTML = cats.filter(([k]) => h[k] && h[k].length).map(([k, label, col]) =>
+    `<div class="her-cat"><div class="her-h" style="color:${col}">${label}<span class="her-n">${h[k].length}</span></div>` +
+    h[k].map(r => `<div class="her-row"><span class="her-gene">${esc(r.gene)}</span><span class="her-cond">${esc(r.condition)}</span><span class="her-zyg">${esc(r.zygosity)}</span><span class="her-sig">${esc(r.significance)}</span></div>`).join("") +
+    `</div>`).join("");
+}
 function setChip(dotId, labId, text, color) { $(dotId).style.background=color; $(labId).textContent=text; $(labId).style.color=color; }
 function disableRun(on) { $("btn-run").disabled = on; $("btn-dry").disabled = on; }
 
@@ -543,7 +572,7 @@ async function loadResults() {
   let d; try { d = await j("/api/results?sample=" + encodeURIComponent(s)); } catch(e){ return; }
   // downloads
   const links = [];
-  const metaFor = {health:"health report", ancestry:"ancestry", chip:"23andMe v5 chip"};
+  const metaFor = {health:"health report", ancestry:"ancestry", chip:"23andMe v5 chip", hereditary:"hereditary conditions"};
   for (const [k,f] of Object.entries(d.files)) if (f.exists)
     links.push(`<button class="dl" onclick="dl('${f.name}')"><span class="ico">⬇</span><span><span class="nm">${f.name}</span><span class="mt">${metaFor[k]||k} · ${(f.size/1024).toFixed(1)} KB</span></span></button>`);
   $("downloads").innerHTML = links.length ? links.join("") : `<span class="muted">No results for “${s}” yet.</span>`;
@@ -562,6 +591,8 @@ async function loadResults() {
       t.style.background = `linear-gradient(90deg, ${col} ${t.dataset.pct}%, var(--inset) ${t.dataset.pct}%)`;
     });
   } else $("ancestry-sect").classList.add("hidden");
+  // hereditary conditions
+  renderHereditary(d.hereditary);
   // health
   if (d.health_rows && d.health_rows.length) {
     $("health-sect").classList.remove("hidden");

@@ -102,6 +102,21 @@ else
   } > "${REPORT}"
 fi
 
+# ---- Hereditary conditions: classify pathogenic variants by zygosity + MOI ---
+# active = expressed (homozygous / het in a dominant gene); carrier = dormant
+# (one recessive copy); uncertain = single copy, inheritance unknown.
+HEREDITARY="${RESULTS_DIR}/${SAMPLE}.hereditary.tsv"
+if [[ "${ANNOTATOR}" == "vep" && "${DRY_RUN}" != "1" ]]; then
+  if [[ -s "${MOI_MAP}" ]]; then
+    log "classifying hereditary conditions (zygosity + inheritance)…"
+    here="$(dirname "${BASH_SOURCE[0]}")"
+    run bash -c "bcftools +split-vep -d -f '%CHROM\t%POS\t%REF\t%ALT\t[%GT]\t%SYMBOL\t%ClinVar_CLNSIG\t%ClinVar_CLNDN\n' '${ANNOT_VCF}' 2>/dev/null | python3 '${here}/hereditary_conditions.py' '${MOI_MAP}' '${SAMPLE}' > '${HEREDITARY}'"
+    log_ok "hereditary conditions: ${HEREDITARY}"
+  else
+    log_warn "gene inheritance map not found (${MOI_MAP}); skipping hereditary classification (run stage 00)."
+  fi
+fi
+
 log_ok "annotated VCF: ${ANNOT_VCF}"
 log_ok "health report: ${REPORT}"
 log_warn "This report is NOT medical advice. See a genetic counselor for interpretation."

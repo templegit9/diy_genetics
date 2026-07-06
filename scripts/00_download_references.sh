@@ -202,4 +202,12 @@ if [[ "${ANNOTATOR}" == "vep" ]] && ! skip_if_done "${VEP_CACHE_DIR}/.installed"
   fi
 fi
 
+# ---- 8. Gene mode-of-inheritance map (hereditary-conditions classifier) ------
+if [[ "${ANNOTATOR}" == "vep" ]] && ! skip_if_done "${MOI_MAP}"; then
+  ensure_dir "$(dirname "${MOI_MAP}")"
+  log "building gene inheritance map from Genomics England PanelApp…"
+  run bash -c "python3 '$(dirname "${BASH_SOURCE[0]}")/fetch_inheritance_map.py' '${MOI_MAP}'" \
+    || log_warn "inheritance map fetch failed; stage 04 hereditary classification will be skipped."
+fi
+
 log_ok "reference preparation complete (or dry-run planned)."
