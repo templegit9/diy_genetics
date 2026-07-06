@@ -357,6 +357,7 @@ function fmtDur(s) {
   return m + ":" + String(sec).padStart(2, "0");
 }
 function updateProgress(d) {
+  window._prog = d;  // latest status, for the 1s elapsed ticker
   const wrap = $("progress-wrap");
   if (d.running && d.plan && d.plan.length) {
     wrap.classList.remove("hidden");
@@ -561,7 +562,18 @@ $("start-backend").onclick = async () => {
 $("SAMPLE").addEventListener("change", loadResults);
 
 loadConfig().then(pollStatus).then(autoStartBackend).then(pollGpu).then(loadResults).then(loadReferences);
-setInterval(() => { if (!es) pollStatus(); pollGpu(); loadReferences(); }, 4000);
+// poll status every 2s even while the log is streaming, so the progress bar,
+// elapsed time and ETA keep updating during a run.
+setInterval(() => { pollStatus(); pollGpu(); loadReferences(); }, 2000);
+// 1s ticker: count elapsed up smoothly between status polls, decrement ETA.
+setInterval(() => {
+  const d = window._prog;
+  if (d && d.running && d.started) {
+    const el = Math.max(0, Math.floor(Date.now() / 1000 - d.started));
+    const eta = d.eta != null ? Math.max(0, d.eta - (el - (d.elapsed || 0))) : null;
+    $("prog-time").textContent = `${fmtDur(el)} elapsed` + (eta != null ? ` · ~${fmtDur(eta)} left` : "");
+  }
+}, 1000);
 </script>
 </body>
 </html>
