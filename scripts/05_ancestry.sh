@@ -26,7 +26,8 @@ require plink2 bcftools tabix awk python3
 require_file "${IN_VCF}" "personal VCF (run stage 03)"
 require_file "${KG_PCA_WTS}" "1000G PCA weights (run stage 00)"
 require_file "${KG_PCA_AFREQ}" "1000G allele frequencies (run stage 00)"
-require_file "${KG_PCA_CENTROIDS}" "1000G superpop centroids (run stage 00)"
+require_file "${KG_PCA_REFPROJ}" "1000G reference PCs (run stage 00)"
+require_file "${KG_POP}" "1000G superpopulation labels (run stage 00)"
 require_file "${DBSNP_VCF}" "dbSNP (to key the sample by rsID; run stage 00)"
 require_file "${ref_bed}.bim" "1000G reference markers (run stage 00)"
 ensure_dir "${work}"
@@ -51,12 +52,12 @@ run plink2 --bfile "${work}/sample" \
   --score "${KG_PCA_WTS}" 2 6 header-read no-mean-imputation variance-standardize \
   --score-col-nums 7-16 --out "${work}/sample_proj"
 
-# ---- 3. Distance to superpop centroids -> proportions ----------------------
+# ---- 3. k-NN vs the reference PCs -> superpopulation proportions ------------
 if [[ "${DRY_RUN}" == "1" ]]; then
   echo "${_C_DIM}$(_ts)${_C_RESET} ${_C_YEL}[DRY ]${_C_RESET}  build ${ANCESTRY_OUT}" >&2
 else
   n_markers=$(wc -l < "${work}/sample.bim")
-  run bash -c "python3 '${here}/ancestry_proportions.py' '${KG_PCA_CENTROIDS}' '${work}/sample_proj.sscore' '${n_markers}' '${SAMPLE}' > '${ANCESTRY_OUT}'"
+  run bash -c "python3 '${here}/ancestry_proportions.py' '${KG_PCA_REFPROJ}' '${KG_POP}' '${work}/sample_proj.sscore' '${n_markers}' '${SAMPLE}' > '${ANCESTRY_OUT}'"
 fi
 
 log_ok "ancestry estimate: ${ANCESTRY_OUT}"

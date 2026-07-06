@@ -206,7 +206,7 @@ async def api_run(request: Request) -> JSONResponse:
         start_new_session=True,
     )
     _run.update(proc=proc, logfile=logfile, sample=sample,
-                mode="dry-run" if dry else "run", started=time.time(),
+                mode="dry-run" if dry else "run", started=time.time(), finished=None,
                 plan=run_stage_plan(overrides.get("CALLER", "gatk"),
                                     overrides.get("RUN_23ANDME", "true")))
     return JSONResponse({"ok": True, "sample": sample,
@@ -246,7 +246,11 @@ def api_status() -> dict[str, Any]:
     stage = current_stage(_run["logfile"])
     plan = _run.get("plan") or []
     started = _run.get("started")
-    elapsed = int(time.time() - started) if started else None
+    # Freeze elapsed at completion so a finished run doesn't keep counting up.
+    if not running and proc is not None and _run.get("finished") is None:
+        _run["finished"] = time.time()
+    end = time.time() if running else (_run.get("finished") or time.time())
+    elapsed = int(end - started) if started else None
 
     # Current stage id = leading token of the "stage NN — ..." marker.
     stage_id = stage.split()[0] if stage else None

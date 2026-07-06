@@ -481,7 +481,7 @@ async function loadResults() {
   // ancestry
   if (d.ancestry && d.ancestry.proportions.length) {
     $("ancestry-sect").classList.remove("hidden");
-    $("anc-meta").textContent = `ADMIXTURE K=${d.ancestry.proportions.length} · 1000G public panel${d.ancestry.labeled?"":" · labels inferred"}`;
+    $("anc-meta").textContent = `PCA k-NN · 1000G public panel${d.ancestry.labeled?"":" · labels inferred"}`;
     $("ancestry").innerHTML = d.ancestry.proportions.map((p,i) => {
       const lab = d.ancestry.labels[i]; const pct = (p*100).toFixed(1);
       return `<div class="anc"><span class="lab">${lab}</span><div class="track"><span style="width:${pct}%;background:${ANC_COLORS[lab]||'var(--accent-fill)'}"></span></div><span class="pct">${pct}%</span></div>`;

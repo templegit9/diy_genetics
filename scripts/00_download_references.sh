@@ -130,7 +130,7 @@ learn_pca_reference() {
     # (Population = 26 sub-populations).
     run bash -c "awk 'NR==1{for(i=1;i<=NF;i++)if(\$i==\"SuperPop\")c=i; next}{print \$c}' '${KG_PREFIX}.psam' > '${KG_POP}'"
   fi
-  skip_if_done "${KG_PCA_CENTROIDS}" && return 0
+  skip_if_done "${KG_PCA_REFPROJ}" && return 0
   log "learning PCA ancestry reference (1000G superpopulations) — one-time…"
   local ref_bed="${kg_dir}/ref_pruned"
   if ! skip_if_done "${ref_bed}.bed"; then
@@ -160,15 +160,11 @@ learn_pca_reference() {
   fi
   # PCA + per-allele weights + allele frequencies (to project new samples).
   run plink2 --bfile "${ref_bed}" --freq --pca 10 allele-wts --out "${kg_dir}/ref_pca"
-  # Project the reference onto its own PCs (the exact scaling stage 05 uses),
-  # then take per-superpopulation centroids over the top 4 PCs (sscore cols 5-8).
+  # Project the reference onto its own PCs — the exact scaling stage 05 uses.
+  # Stage 05 does k-NN against these per-individual coordinates + the .pop labels.
   run plink2 --bfile "${ref_bed}" --read-freq "${kg_dir}/ref_pca.afreq" \
     --score "${kg_dir}/ref_pca.eigenvec.allele" 2 6 header-read no-mean-imputation variance-standardize \
     --score-col-nums 7-16 --out "${kg_dir}/ref_proj"
-  run bash -c "paste <(tail -n +2 '${kg_dir}/ref_proj.sscore') '${KG_POP}' \
-    | awk 'BEGIN{OFS=\"\t\"}{p=\$NF; n[p]++; for(i=5;i<=8;i++)s[p,i]+=\$i} \
-        END{for(p in n){printf \"%s\", p; for(i=5;i<=8;i++)printf \"\t%.6f\", s[p,i]/n[p]; print \"\"}}' \
-    > '${KG_PCA_CENTROIDS}'"
 }
 learn_pca_reference || log_warn "PCA ancestry reference prep failed — ancestry (stage 05) unavailable. Continuing to VEP/chip."
 
