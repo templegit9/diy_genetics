@@ -286,6 +286,7 @@ def api_references() -> dict[str, Any]:
         ("GRCh38 reference FASTA", fa, "core"),
         ("FASTA index (.fai)", fa + ".fai" if fa else "", "core"),
         ("Sequence dictionary (.dict)", dict_path, "core"),
+        ("BWA index (Parabricks)", fa + ".bwt" if fa else "", "core"),
         ("dbSNP known-sites", c.get("DBSNP_VCF", ""), "core"),
         ("ClinVar VCF", c.get("CLINVAR_VCF", ""), "annotation"),
         ("VEP cache", (vep + "/.installed") if vep else "", "annotation"),
@@ -295,7 +296,7 @@ def api_references() -> dict[str, Any]:
         ("1000G population labels", c.get("KG_POP", ""), "ancestry"),
         ("ADMIXTURE learned clusters", c.get("KG_ADMIX_P", ""), "ancestry"),
         ("23andMe v5 chip positions", c.get("CHIP_BED", ""), "export"),
-        ("bwa-mem2 index (CPU align only)", fa + ".bwt.2bit.64" if fa else "", "cpu"),
+        ("bwa-mem2 index (optional, CPU align)", fa + ".bwt.2bit.64" if fa else "", "cpu"),
     ]
     items = [{"label": lbl, "path": p, "group": g, **stat(p)} for lbl, p, g in spec]
     have = {it["label"] for it in items if it["exists"]}
@@ -304,7 +305,7 @@ def api_references() -> dict[str, Any]:
         return all(l in have for l in labels)
 
     core = ["GRCh38 reference FASTA", "FASTA index (.fai)",
-            "Sequence dictionary (.dict)", "dbSNP known-sites"]
+            "Sequence dictionary (.dict)", "BWA index (Parabricks)", "dbSNP known-sites"]
     ancestry = ["1000G panel (.pgen)", "1000G panel (.pvar)", "1000G panel (.psam)",
                 "1000G population labels", "ADMIXTURE learned clusters"]
     readiness = {
