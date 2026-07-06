@@ -484,7 +484,10 @@ async function loadResults() {
     $("anc-meta").textContent = `PCA k-NN · 1000G public panel${d.ancestry.labeled?"":" · labels inferred"}`;
     $("ancestry").innerHTML = d.ancestry.proportions.map((p,i) => {
       const lab = d.ancestry.labels[i]; const pct = (p*100).toFixed(1);
-      return `<div class="anc"><span class="lab">${lab}</span><div class="track"><span style="width:${pct}%;background:${ANC_COLORS[lab]||'var(--accent-fill)'}"></span></div><span class="pct">${pct}%</span></div>`;
+      const col = ANC_COLORS[lab] || "var(--accent-fill)";
+      // Fill the track with a hard-stop gradient (robust: no nested %-width span).
+      const fill = `linear-gradient(90deg, ${col} ${pct}%, var(--inset) ${pct}%)`;
+      return `<div class="anc"><span class="lab">${lab}</span><div class="track" style="background:${fill}"></div><span class="pct">${pct}%</span></div>`;
     }).join("");
   } else $("ancestry-sect").classList.add("hidden");
   // health
