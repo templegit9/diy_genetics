@@ -74,29 +74,35 @@ elif ! skip_if_done "${REF_FASTA}.bwt.2bit.64"; then
 fi
 
 # ---- 2. dbSNP (BQSR known-sites) -------------------------------------------
-# NCBI ships dbSNP with RefSeq contig names (NC_0000..). BQSR needs contig names
-# matching the reference, so we rename with a mapping derived from the .fai.
+# NCBI ships dbSNP (GCF_000001405.40 = GRCh38.p14) with RefSeq contig names
+# (NC_0000..). BQSR needs contigs matching the reference (chr1..), so rename via
+# the standard GRCh38 RefSeq->chr map for the 25 primary chromosomes. Unlisted
+# alt/patch contigs keep their names and are simply ignored during BQSR.
 dbsnp_raw="${REF_DIR}/dbsnp/GCF_000001405.40.gz"
+refseq_map="${REF_DIR}/dbsnp/refseq2chr.tsv"
 if ! skip_if_done "${DBSNP_VCF}"; then
   download "${URL_DBSNP}"     "${dbsnp_raw}"
   download "${URL_DBSNP_TBI}" "${dbsnp_raw}.tbi"
-  log "renaming dbSNP contigs to match GRCh38 primary assembly…"
-  # Build a RefSeq->assembly name map only for chromosomes present in the ref.
-  # (Users on a different reference should regenerate this map; see docs.)
-  run bash -c "
-    awk '{print \$1}' '${REF_FASTA}.fai' > '${REF_DIR}/dbsnp/ref_contigs.txt'
-    bcftools annotate --rename-chrs '${REF_DIR}/dbsnp/refseq2chr.tsv' \
-      '${dbsnp_raw}' -Oz -o '${DBSNP_VCF}' 2>/dev/null \
-      || cp '${dbsnp_raw}' '${DBSNP_VCF}'
-  "
-  run tabix -f -p vcf "${DBSNP_VCF}" || true
-  log_warn "dbSNP contig renaming needs refseq2chr.tsv (RefSeq<TAB>chrName). See docs; a stub is written if absent."
+  ensure_dir "${REF_DIR}/dbsnp"
+  run bash -c "printf 'NC_000001.11\tchr1\nNC_000002.12\tchr2\nNC_000003.12\tchr3\nNC_000004.12\tchr4\nNC_000005.10\tchr5\nNC_000006.12\tchr6\nNC_000007.14\tchr7\nNC_000008.11\tchr8\nNC_000009.12\tchr9\nNC_000010.11\tchr10\nNC_000011.10\tchr11\nNC_000012.12\tchr12\nNC_000013.11\tchr13\nNC_000014.9\tchr14\nNC_000015.10\tchr15\nNC_000016.10\tchr16\nNC_000017.11\tchr17\nNC_000018.10\tchr18\nNC_000019.10\tchr19\nNC_000020.11\tchr20\nNC_000021.9\tchr21\nNC_000022.11\tchr22\nNC_000023.11\tchrX\nNC_000024.10\tchrY\nNC_012920.1\tchrM\n' > '${refseq_map}'"
+  log "renaming dbSNP contigs to GRCh38 chr names (large file, ~30 min)…"
+  run bash -c "bcftools annotate --rename-chrs '${refseq_map}' '${dbsnp_raw}' -Oz -o '${DBSNP_VCF}'"
+  run tabix -f -p vcf "${DBSNP_VCF}"
 fi
 
 # ---- 3. ClinVar (health annotation) ----------------------------------------
+# ClinVar uses Ensembl-style contig names (1, 2, .. MT); rename to chr* to match
+# the reference so VEP's custom ClinVar annotation lines up.
+clinvar_raw="${REF_DIR}/clinvar/clinvar.raw.vcf.gz"
+clinvar_map="${REF_DIR}/clinvar/ens2chr.tsv"
 if ! skip_if_done "${CLINVAR_VCF}"; then
-  download "${URL_CLINVAR}"     "${CLINVAR_VCF}"
-  download "${URL_CLINVAR_TBI}" "${CLINVAR_VCF}.tbi"
+  download "${URL_CLINVAR}"     "${clinvar_raw}"
+  download "${URL_CLINVAR_TBI}" "${clinvar_raw}.tbi"
+  ensure_dir "${REF_DIR}/clinvar"
+  run bash -c "{ for c in \$(seq 1 22) X Y; do printf '%s\tchr%s\n' \"\$c\" \"\$c\"; done; printf 'MT\tchrM\n'; } > '${clinvar_map}'"
+  log "renaming ClinVar contigs to GRCh38 chr names…"
+  run bash -c "bcftools annotate --rename-chrs '${clinvar_map}' '${clinvar_raw}' -Oz -o '${CLINVAR_VCF}'"
+  run tabix -f -p vcf "${CLINVAR_VCF}"
 fi
 
 # ---- 4. 1000 Genomes Phase 3 panel (PLINK2) --------------------------------
