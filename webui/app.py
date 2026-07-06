@@ -264,7 +264,7 @@ def api_references() -> dict[str, Any]:
     """Report which reference datasets (stage 00 outputs) are present, so the UI
     can show download/prep progress and per-workflow readiness."""
     c = source_conf_vars(["REF_FASTA", "DBSNP_VCF", "CLINVAR_VCF", "KG_PREFIX",
-                          "KG_POP", "KG_ADMIX_P", "CHIP_BED", "VEP_CACHE_DIR"])
+                          "KG_POP", "KG_ADMIX_P", "CHIP_RSIDS", "VEP_CACHE_DIR"])
     fa = c.get("REF_FASTA", "")
     kg = c.get("KG_PREFIX", "")
     dict_path = (fa[:-3] + ".dict") if fa.endswith(".fa") else (fa + ".dict")
@@ -295,7 +295,7 @@ def api_references() -> dict[str, Any]:
         ("1000G panel (.psam)", kg + ".psam" if kg else "", "ancestry"),
         ("1000G population labels", c.get("KG_POP", ""), "ancestry"),
         ("ADMIXTURE learned clusters", c.get("KG_ADMIX_P", ""), "ancestry"),
-        ("23andMe v5 chip positions", c.get("CHIP_BED", ""), "export"),
+        ("23andMe v5 chip rsIDs", c.get("CHIP_RSIDS", ""), "export"),
         ("bwa-mem2 index (optional, CPU align)", fa + ".bwt.2bit.64" if fa else "", "cpu"),
     ]
     items = [{"label": lbl, "path": p, "group": g, **stat(p)} for lbl, p, g in spec]
@@ -312,7 +312,7 @@ def api_references() -> dict[str, Any]:
         "GPU pipeline (Parabricks)": ok(core),
         "Health annotation": ok(["ClinVar VCF", "VEP cache"]),
         "Ancestry": ok(ancestry),
-        "23andMe export": ok(["23andMe v5 chip positions"]),
+        "23andMe export": ok(["23andMe v5 chip rsIDs"]),
         "CPU align": ok(["bwa-mem2 index (CPU align only)"]),
     }
     return {"items": items, "readiness": readiness,
