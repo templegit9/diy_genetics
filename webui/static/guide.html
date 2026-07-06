@@ -253,7 +253,9 @@
         <h3>Read your results</h3>
         <p class="muted">When it finishes, the <b>Results</b> panel shows your ancestry bars and
           a table of ClinVar-annotated variants, and offers the health report, ancestry, and
-          23andMe files to download.</p>
+          23andMe files to download. The 23andMe file can be uploaded to third-party interpreters
+          like <a href="https://promethease.com" target="_blank" rel="noopener noreferrer">Promethease</a>
+          or <a href="https://genomelink.io" target="_blank" rel="noopener noreferrer">Genomelink</a>.</p>
       </div></li>
     </ol>
   </section>
@@ -268,7 +270,7 @@
       needles, no lab visit — you spit in a tube and mail it back.</p>
     <ol class="steps" style="margin-bottom:22px">
       <li><div class="step-body"><h3>Order a whole-genome kit</h3>
-        <p class="muted">Buy a <b>30× WGS</b> kit online (Dante Labs, Sequencing.com, or similar).
+        <p class="muted">Buy a <b>30× WGS</b> kit online (<a href="https://www.dantelabs.com" target="_blank" rel="noopener noreferrer">Dante Labs</a>, <a href="https://sequencing.com" target="_blank" rel="noopener noreferrer">Sequencing.com</a>, or similar).
           “30×” means each base is read ~30 times — enough for reliable whole-genome calls.
           Crucially, pick a vendor that lets you <b>download the raw FASTQ/BAM</b>, not just a
           report.</p></div></li>
@@ -295,34 +297,39 @@
     <div class="grid">
       <div class="card">
         <h3>Consumer WGS kits <span class="tag paid">paid</span></h3>
-        <p class="muted">Order a 30× whole-genome kit (e.g. Dante Labs, Sequencing.com), spit
-          in a tube, and download your raw <b>FASTQ/BAM</b> weeks later. Confirm the vendor lets
-          you download the complete raw files — that's what this pipeline needs.</p>
+        <p class="muted">Order a 30× whole-genome kit (e.g.
+          <a href="https://www.dantelabs.com" target="_blank" rel="noopener noreferrer">Dante Labs</a>,
+          <a href="https://sequencing.com" target="_blank" rel="noopener noreferrer">Sequencing.com</a>),
+          spit in a tube, and download your raw <b>FASTQ/BAM</b> weeks later. Confirm the vendor
+          lets you download the complete raw files — that's what this pipeline needs.</p>
       </div>
       <div class="card">
         <h3>Nanopore, at home <span class="tag paid">paid</span></h3>
-        <p class="muted">An Oxford Nanopore MinION sequences DNA yourself, but library prep and
-          coverage make it an advanced project. Most people start with a mail-in kit.</p>
+        <p class="muted">An <a href="https://nanoporetech.com" target="_blank" rel="noopener noreferrer">Oxford Nanopore</a>
+          MinION sequences DNA yourself, but library prep and coverage make it an advanced
+          project. Most people start with a mail-in kit.</p>
       </div>
     </div>
 
     <h3 style="margin:22px 0 10px">Public genomes — free, to test the pipeline</h3>
     <div class="grid">
       <div class="card">
-        <h3>Genome in a Bottle <span class="tag free">free</span></h3>
+        <h3><a href="https://www.nist.gov/programs-projects/genome-bottle" target="_blank" rel="noopener noreferrer">Genome in a Bottle</a> <span class="tag free">free</span></h3>
         <p class="muted">NIST's reference samples (HG001/NA12878, HG002…) with gold-standard
           truth sets — ideal for checking accuracy. Real 30× human FASTQ, openly hosted.</p>
         <ul class="tight muted">
-          <li>Search “GIAB HG002 NIST FASTQ”</li>
+          <li><a href="https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/" target="_blank" rel="noopener noreferrer">GIAB data at NCBI ↗</a></li>
         </ul>
       </div>
       <div class="card">
-        <h3>1000 Genomes <span class="tag free">free</span></h3>
+        <h3><a href="https://www.internationalgenome.org" target="_blank" rel="noopener noreferrer">1000 Genomes</a> <span class="tag free">free</span></h3>
         <p class="muted">High-coverage WGS for thousands of individuals, downloadable as
-          CRAM/FASTQ from the IGSR / ENA. Pick any sample ID.</p>
+          CRAM/FASTQ from the
+          <a href="https://www.internationalgenome.org/data-portal/sample" target="_blank" rel="noopener noreferrer">IGSR data portal</a>
+          / <a href="https://www.ebi.ac.uk/ena/browser/home" target="_blank" rel="noopener noreferrer">ENA</a>. Pick any sample ID.</p>
       </div>
       <div class="card">
-        <h3>Personal Genome Project <span class="tag free">free</span></h3>
+        <h3><a href="https://my.pgp-hms.org/public_genetic_data" target="_blank" rel="noopener noreferrer">Personal Genome Project</a> <span class="tag free">free</span></h3>
         <p class="muted">Participants publicly released their own data (open consent). Some have
           whole genomes, not just chip data. A free login is required to download.</p>
       </div>
