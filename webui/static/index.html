@@ -95,6 +95,11 @@
   input.in, select.in { background:var(--field); border:1px solid var(--field-bd); border-radius:6px; padding:8px 10px; font-family:var(--mono); }
   select.in { cursor:pointer; }
   .row { display:flex; gap:10px; } .row > * { flex:1; }
+  .filerow { display:flex; gap:6px; }
+  .filerow .in { flex:1; min-width:0; }
+  .browse { flex:none; border:1px solid var(--field-bd); background:var(--inset); color:var(--dim);
+    border-radius:6px; padding:0 11px; font:600 11px var(--mono); cursor:pointer; }
+  .browse:hover { border-color:var(--accent-line); color:var(--text); }
   .pill { font-size:9px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; color:var(--accent);
     background:var(--accent-soft); border:1px solid var(--accent-line); border-radius:20px; padding:2px 7px; }
   .note { font-size:11px; color:var(--dim); line-height:1.4; }
@@ -194,8 +199,10 @@
       <div class="hd"><span class="title">Run configuration</span></div>
       <div class="body">
         <label class="f"><span class="lab">Sample ID</span><input class="in" id="SAMPLE"></label>
-        <label class="f"><span class="lab">FASTQ R1</span><input class="in" id="FASTQ_R1" spellcheck="false" style="font-size:12px"></label>
-        <label class="f"><span class="lab">FASTQ R2</span><input class="in" id="FASTQ_R2" spellcheck="false" style="font-size:12px"></label>
+        <label class="f"><span class="lab">FASTQ R1</span>
+          <div class="filerow"><input class="in" id="FASTQ_R1" spellcheck="false" style="font-size:12px"><button type="button" class="browse" data-target="FASTQ_R1" title="Choose file">Browse</button></div></label>
+        <label class="f"><span class="lab">FASTQ R2</span>
+          <div class="filerow"><input class="in" id="FASTQ_R2" spellcheck="false" style="font-size:12px"><button type="button" class="browse" data-target="FASTQ_R2" title="Choose file">Browse</button></div></label>
         <label class="f">
           <span style="display:flex;align-items:center;gap:8px"><span class="lab">Caller</span><span class="pill hidden" id="gpu-pill">⚡ GPU accelerated</span></span>
           <select class="in" id="CALLER">
@@ -458,7 +465,34 @@ async function autoStartBackend() {
   } catch(e) { /* leave the manual Start backend button available */ }
 }
 
+// ---- native file picker (desktop app) ----
+function winToWsl(p) {
+  // "D:\dir\file" -> "/mnt/d/dir/file"
+  const m = p.match(/^([A-Za-z]):[\\/](.*)$/);
+  return m ? "/mnt/" + m[1].toLowerCase() + "/" + m[2].replace(/\\/g, "/") : p;
+}
+async function pickFile(targetId) {
+  if (!TAURI) { alert("The file picker is available in the desktop app. In a browser, type the path."); return; }
+  try {
+    const sel = await window.__TAURI__.core.invoke("plugin:dialog|open", {
+      options: { multiple: false, directory: false,
+        filters: [{ name: "Sequencing reads", extensions: ["gz", "fastq", "fq", "bam"] }] }
+    });
+    if (!sel) return;
+    const path = winToWsl(Array.isArray(sel) ? sel[0] : sel);
+    $(targetId).value = path;
+    if (targetId === "FASTQ_R1") {
+      if (!$("FASTQ_R2").value && /_R1(\.|_)/.test(path)) $("FASTQ_R2").value = path.replace(/_R1(\.|_)/, "_R2$1");
+      if (!$("SAMPLE").value) {
+        const base = path.split("/").pop().replace(/_R1.*$/, "").replace(/\.(fastq|fq)(\.gz)?$/i, "");
+        if (base) { $("SAMPLE").value = base; loadResults(); }
+      }
+    }
+  } catch(e) { alert("File picker failed: " + e); }
+}
+
 // ---- wire up ----
+document.querySelectorAll(".browse").forEach(b => b.onclick = () => pickFile(b.dataset.target));
 $("CALLER").addEventListener("change", syncCaller);
 $("btn-run").onclick = () => run(false);
 $("btn-dry").onclick = () => run(true);
