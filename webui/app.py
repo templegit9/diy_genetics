@@ -16,9 +16,11 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import shutil
 import signal
 import subprocess
 import time
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -468,3 +470,92 @@ def api_download(name: str) -> FileResponse:
     if rdir not in target.parents or not target.exists():
         raise HTTPException(status_code=404, detail="not found")
     return FileResponse(target, filename=target.name)
+
+
+# ---- Saved analyses (.diyg) -------------------------------------------------
+# A .diyg is a zip bundle of one run: analysis.json (config + metadata) plus the
+# sample's result files and stage logs, so an analysis can be reopened later
+# with its config and outputs intact.
+
+def _analysis_members(sample: str) -> list[tuple[str, Path]]:
+    """(arcname, path) for every file belonging to `sample` — results + logs.
+
+    Intermediates that are large and reproducible (BAM, per-chrom temp) are
+    skipped; the VCFs, reports, exports, logs and QC html are kept.
+    """
+    rdir, ldir = results_dir(), log_dir()
+    members: list[tuple[str, Path]] = []
+    for p in sorted(rdir.glob(f"{sample}.*")):
+        if p.is_file() and p.suffix not in (".bam", ".bai") and not p.name.endswith(".pb.bam"):
+            members.append((f"results/{p.name}", p))
+    for p in sorted(ldir.glob(f"{sample}.stage*.log")):
+        if p.is_file():
+            members.append((f"logs/{p.name}", p))
+    return members
+
+
+@app.post("/api/analysis/save")
+async def api_analysis_save(request: Request) -> dict[str, Any]:
+    check_token(request)
+    body = await request.json()
+    sample = str(body.get("sample", "")).strip()
+    dest = str(body.get("path", "")).strip()
+    if not sample or not dest:
+        raise HTTPException(status_code=400, detail="sample and path required")
+    if not dest.endswith(".diyg"):
+        dest += ".diyg"
+    members = _analysis_members(sample)
+    if not members:
+        raise HTTPException(status_code=404, detail=f"no results found for sample '{sample}' — run the pipeline first")
+    manifest = {
+        "diyg_version": 1,
+        "app": "DIY Genetics",
+        "sample": sample,
+        "created": int(time.time()),
+        "config": current_form(),
+        "files": [arc for arc, _ in members],
+    }
+    dest_path = Path(dest)
+    dest_path.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(dest_path, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("analysis.json", json.dumps(manifest, indent=2))
+        for arc, p in members:
+            z.write(p, arc)
+    return {"ok": True, "path": str(dest_path), "sample": sample,
+            "files": len(members), "size": dest_path.stat().st_size}
+
+
+@app.post("/api/analysis/open")
+async def api_analysis_open(request: Request) -> dict[str, Any]:
+    check_token(request)
+    body = await request.json()
+    src = str(body.get("path", "")).strip()
+    if not src or not Path(src).exists():
+        raise HTTPException(status_code=400, detail="analysis file not found")
+    rdir, ldir = results_dir(), log_dir()
+    rdir.mkdir(parents=True, exist_ok=True)
+    ldir.mkdir(parents=True, exist_ok=True)
+    try:
+        with zipfile.ZipFile(src) as z:
+            manifest = json.loads(z.read("analysis.json"))
+            for info in z.infolist():
+                if info.is_dir():
+                    continue
+                name = info.filename
+                if name.startswith("results/"):
+                    target = rdir / Path(name).name
+                elif name.startswith("logs/"):
+                    target = ldir / Path(name).name
+                else:
+                    continue
+                with z.open(info) as fsrc, open(target, "wb") as fdst:
+                    shutil.copyfileobj(fsrc, fdst)
+    except (zipfile.BadZipFile, KeyError) as exc:
+        raise HTTPException(status_code=400, detail=f"not a valid .diyg file: {exc}")
+    config = manifest.get("config", {})
+    try:
+        STATE_FILE.write_text(json.dumps(config, indent=2))
+    except Exception:
+        pass
+    return {"ok": True, "sample": manifest.get("sample"),
+            "config": config, "created": manifest.get("created")}

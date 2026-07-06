@@ -178,6 +178,8 @@
       </div>
       <div class="chip"><span class="dot" id="pipe-dot"></span><span class="k">Pipeline</span><span class="v" id="pipe-label">idle</span></div>
     </div>
+    <button class="headlink" id="open-analysis" title="Open a saved .diyg analysis">Open</button>
+    <button class="headlink" id="save-analysis" title="Save this analysis as a .diyg file">Save</button>
     <button class="headlink" id="guide-btn" title="How to use">Guide</button>
     <button class="btn primary hidden" id="start-backend">⏻ Start backend</button>
   </header>
@@ -325,6 +327,46 @@ function collect() {
   const o = {}; FIELDS.forEach(f => o[f] = $(f).value);
   o.RUN_23ANDME = $("RUN_23ANDME").checked ? "true" : "false";
   return o;
+}
+
+// ---- saved analyses (.diyg) ----
+async function jpost(url, obj) {
+  return j(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(obj) });
+}
+function applyConfig(cfg) {
+  if (!cfg) return;
+  FIELDS.forEach(f => { if ($(f) && cfg[f] !== undefined) $(f).value = cfg[f]; });
+  if (cfg.RUN_23ANDME !== undefined) $("RUN_23ANDME").checked = String(cfg.RUN_23ANDME).toLowerCase() === "true";
+  syncCaller();
+}
+async function saveAnalysis() {
+  const sample = ($("SAMPLE").value || "").trim();
+  if (!sample) { alert("Set a Sample ID first."); return; }
+  if (!TAURI) { alert("Saving analyses is available in the desktop app."); return; }
+  try {
+    const sel = await window.__TAURI__.core.invoke("plugin:dialog|save", {
+      options: { defaultPath: sample + ".diyg",
+        filters: [{ name: "DIY Genetics analysis", extensions: ["diyg"] }] }
+    });
+    if (!sel) return;
+    const r = await jpost("/api/analysis/save", { sample, path: winToWsl(sel) });
+    alert(`Saved "${sample}" — ${r.files} files, ${(r.size / 1e6).toFixed(1)} MB.`);
+  } catch(e) { alert("Save failed: " + e); }
+}
+async function openAnalysis() {
+  if (!TAURI) { alert("Opening analyses is available in the desktop app."); return; }
+  try {
+    const sel = await window.__TAURI__.core.invoke("plugin:dialog|open", {
+      options: { multiple: false, directory: false,
+        filters: [{ name: "DIY Genetics analysis", extensions: ["diyg"] }] }
+    });
+    if (!sel) return;
+    const r = await jpost("/api/analysis/open", { path: winToWsl(Array.isArray(sel) ? sel[0] : sel) });
+    applyConfig(r.config);
+    if (r.sample) $("SAMPLE").value = r.sample;
+    loadResults();
+    alert(`Opened analysis "${r.sample}".`);
+  } catch(e) { alert("Open failed: " + e); }
 }
 
 // ---- status + gpu polling ----
@@ -539,6 +581,8 @@ $("btn-dry").onclick = () => run(true);
 $("btn-stop").onclick = stop;
 $("btn-refresh").onclick = loadResults;
 // Guide overlay: load the guide into an iframe on first open (renders in-app).
+$("save-analysis").onclick = saveAnalysis;
+$("open-analysis").onclick = openAnalysis;
 $("guide-btn").onclick = () => {
   const f = $("guide-frame");
   if (!f.getAttribute("src")) f.setAttribute("src", "guide.html");
