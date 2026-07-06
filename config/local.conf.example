@@ -1,0 +1,22 @@
+# config/local.conf.example — copy to config/local.conf (gitignored) for
+# per-host overrides. Sourced FIRST by pipeline.conf, so set any variable here
+# and the defaults will honor it.
+#
+# Typical use: keep the source tree on the fast/small disk (PROJECT_ROOT) but
+# put the large data on a big disk. On the RTX workstation the 4 TB drive is a
+# Windows volume mounted in WSL under /mnt/<letter>.
+#
+#   cp config/local.conf.example config/local.conf
+#   # then edit the paths below to your big-disk mount
+
+# Large data roots — point these at the 4 TB drive:
+# REF_DIR="/mnt/d/diy-genetics/references"
+# DATA_DIR="/mnt/d/diy-genetics/data"
+# RESULTS_DIR="/mnt/d/diy-genetics/results"
+
+# Keep logs small/local (fast disk) — usually leave as default:
+# LOG_DIR="/home/you/diy_genetics/logs"
+
+# Compute tuning for this host (the workstation WSL sees 12 threads):
+# THREADS=12
+# MEM_GB=48

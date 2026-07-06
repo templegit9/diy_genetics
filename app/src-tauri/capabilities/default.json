@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Default capability: core APIs. Custom app commands (wsl_info/start_backend/stop_backend) are exposed via the invoke handler.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

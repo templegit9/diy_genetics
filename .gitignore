@@ -1,0 +1,55 @@
+# Large / private data — never commit genomic data or references
+references/
+data/
+results/
+logs/
+work/
+
+# Genomic file types (belt-and-suspenders in case paths are overridden)
+*.fa
+*.fasta
+*.fa.gz
+*.fasta.gz
+*.fai
+*.dict
+*.bam
+*.bai
+*.cram
+*.crai
+*.sam
+*.vcf
+*.vcf.gz
+*.vcf.gz.tbi
+*.g.vcf.gz
+*.bed
+*.bim
+*.fam
+*.pgen
+*.pvar
+*.psam
+*.P
+*.Q
+*.txt.gz
+
+# Tool / OS cruft
+*.log
+.DS_Store
+__pycache__/
+*.pyc
+
+# Conda / apptainer local installs (if placed in-tree)
+miniforge3/
+*.sif
+
+# Design-tool export (source design lives in the Claude design artifact)
+*.zip
+webui/state.json
+
+# Per-host config overrides (paths differ per machine; example is committed)
+config/local.conf
+
+# Tauri app build artifacts
+app/node_modules/
+app/src-tauri/target/
+app/src-tauri/gen/
+

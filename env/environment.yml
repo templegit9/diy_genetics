@@ -1,0 +1,35 @@
+# Conda environment for the DIY genetics pipeline.
+# Create with:  mamba env create -f env/environment.yml   (or conda)
+# Update with:  mamba env update -f env/environment.yml --prune
+#
+# Versions are pinned for reproducibility. Bump deliberately, then re-verify.
+name: diy-genetics
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.11
+  # ---- alignment ----
+  - bwa-mem2=2.2.1
+  # ---- BAM/VCF manipulation ----
+  - samtools=1.21
+  - bcftools=1.21
+  - htslib=1.21
+  - tabix
+  # ---- variant calling (GATK path) ----
+  - gatk4=4.6.1.0
+  # ---- ancestry ----
+  - plink=1.90b7.7            # PLINK 1.9
+  - plink2=2.00a5.10          # PLINK 2
+  - admixture=1.3.0
+  # ---- annotation (VEP path) ----
+  - ensembl-vep=113.0
+  # ---- utilities ----
+  - curl
+  - wget
+  - pigz                      # parallel gzip for large FASTQ/VCF
+  # ---- web control panel (webui/) ----
+  - fastapi=0.115.*
+  - uvicorn=0.34.*
+  # NOTE: DeepVariant is NOT a conda package — it runs via Apptainer.
+  #       bootstrap-lxc.sh installs Apptainer and pre-pulls the image.

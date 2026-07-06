@@ -1,0 +1,15 @@
+{
+  "name": "diy-genetics-app",
+  "version": "0.1.0",
+  "description": "Native desktop shell for the DIY Genetics pipeline (Tauri v2 + WSL2 backend)",
+  "private": true,
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "icon": "tauri icon src-tauri/icon.svg"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.1.0"
+  }
+}
