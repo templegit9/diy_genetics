@@ -28,10 +28,14 @@ URL_DBSNP_TBI="https://ftp.ncbi.nih.gov/snp/archive/b156/VCF/GCF_000001405.40.gz
 # ClinVar, GRCh38, weekly VCF.
 URL_CLINVAR="https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/clinvar.vcf.gz"
 URL_CLINVAR_TBI="https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/clinvar.vcf.gz.tbi"
-# 1000 Genomes Phase 3, GRCh38, PLINK2 pgen (from the plink2 resources page).
-URL_KG_PGEN="https://www.dropbox.com/s/afvvf1e15gqzsku/all_phase3.pgen.zst?dl=1"
-URL_KG_PVAR="https://www.dropbox.com/s/op9okq1p8ry5gag/all_phase3.pvar.zst?dl=1"
-URL_KG_PSAM="https://www.dropbox.com/s/yozrzsdrwqej63q/phase3_corrected.psam?dl=1"
+# 1000 Genomes Phase 3, PLINK2 pgen (from the plink2 resources page).
+# NOTE: this "phase 3" release is build 37 (GRCh37). The pipeline aligns to
+# GRCh38, so the ancestry step (05) needs rsID-based matching or a liftover to
+# use it correctly — see the ancestry caveat in the README. (Health annotation
+# and the GPU variant-calling path do NOT use this dataset.)
+URL_KG_PGEN="https://www.dropbox.com/s/y6ytfoybz48dc0u/all_phase3.pgen.zst?dl=1"
+URL_KG_PVAR="https://www.dropbox.com/s/odlexvo8fummcvt/all_phase3.pvar.zst?dl=1"
+URL_KG_PSAM="https://www.dropbox.com/scl/fi/haqvrumpuzfutklstazwk/phase3_corrected.psam?rlkey=0yyifzj2fb863ddbmsv4jkeq6&dl=1"
 
 ensure_dir "${REF_DIR}"
 

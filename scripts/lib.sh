@@ -135,6 +135,12 @@ download() {
   log "downloading ${url}"
   # -f fail on HTTP error, -L follow redirects, -C - resume, -o atomic-ish tmp
   curl -fL -C - --retry 3 --retry-delay 5 -o "${dest}.part" "${url}"
+  # Guard: some hosts (e.g. expired Dropbox links) return a 200 HTML page
+  # instead of the file. Catch that before it breaks a later decompress step.
+  if head -c 64 "${dest}.part" 2>/dev/null | grep -qiE '<!doctype html|<html'; then
+    rm -f "${dest}.part"
+    die "download returned an HTML page, not the file (bad/expired URL?): ${url}"
+  fi
   mv "${dest}.part" "${dest}"
   log_ok "downloaded ${dest##*/}"
 }
