@@ -11,6 +11,7 @@ dependencies:
   - python=3.11
   # ---- alignment ----
   - bwa-mem2=2.2.1
+  - bwa=0.7.18            # classic BWA — its index (.bwt) is required by Parabricks (low-mem, unlike bwa-mem2's ~90 GB)
   # ---- BAM/VCF manipulation ----
   - samtools=1.21
   - bcftools=1.21

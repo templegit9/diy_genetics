@@ -17,7 +17,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 stage_banner "00 download references"
 
 require curl
-[[ "${DRY_RUN}" == "1" ]] || require samtools bwa-mem2 gatk plink2 tabix
+[[ "${DRY_RUN}" == "1" ]] || require samtools bwa bwa-mem2 gatk plink2 tabix
 
 # ---- reference source URLs (edit here if a mirror changes) -------------------
 # GRCh38 primary assembly (no ALT contigs) — GENCODE mirror of the Ensembl build.
@@ -49,6 +49,12 @@ if ! skip_if_done "${REF_FASTA}"; then
 fi
 skip_if_done "${REF_FASTA}.fai"        || run samtools faidx "${REF_FASTA}"
 skip_if_done "${REF_FASTA%.fa}.dict"   || run gatk CreateSequenceDictionary -R "${REF_FASTA}"
+
+# Classic BWA index (.amb/.ann/.bwt/.pac/.sa) — REQUIRED by NVIDIA Parabricks
+# (pbrun germline/fq2bam reads <ref>.bwt). Low memory (~5.5 GB for the human
+# genome), so it builds fine even where the bwa-mem2 index (~90 GB) cannot.
+skip_if_done "${REF_FASTA}.bwt" || run bwa index "${REF_FASTA}"
+
 # bwa-mem2 index writes several sidecar files; .bwt.2bit.64 is the sentinel.
 # Building it for the human genome needs ~60-90 GB RAM. It is ONLY required for
 # the CPU align path (stage 01, gatk/deepvariant callers). The GPU Parabricks
