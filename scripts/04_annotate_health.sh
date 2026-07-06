@@ -42,7 +42,12 @@ if skip_if_done "${ANNOT_VCF}" "${REPORT}"; then exit 0; fi
 case "${ANNOTATOR}" in
   vep)
     require vep bcftools
-    require_file "${VEP_CACHE_DIR}/.installed" "VEP cache (run stage 00)"
+    # Check the actual cache, not the (0-byte) marker — require_file uses -s and
+    # would reject the empty marker even when the cache is fully present.
+    if [[ "${DRY_RUN}" != "1" ]] && { [[ ! -d "${VEP_CACHE_DIR}/homo_sapiens" ]] || \
+         [[ -z "$(ls -A "${VEP_CACHE_DIR}/homo_sapiens" 2>/dev/null)" ]]; }; then
+      die "VEP cache not found (run stage 00). Expected ${VEP_CACHE_DIR}/homo_sapiens/<ver>_GRCh38/"
+    fi
     log "annotating with VEP + ClinVar custom track…"
     # Redirection lives inside bash -c so DRY_RUN skips it atomically (an outer
     # '> file' would be opened by the shell even when run() is a no-op).
